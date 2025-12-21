@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'ledger',
     'Authapp',
     'rest_framework',
+    'drf_spectacular',
     'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -121,6 +122,8 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+
 }
 # from datetime import timedelta
 
@@ -131,6 +134,11 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
 }
 
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'RadidAid',
+    'DESCRIPTION': 'API documentation',
+    'VERSION': '1.0.0',
+}
 
 
 # Internationalization
