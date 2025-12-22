@@ -23,11 +23,13 @@ from drf_spectacular.views import (
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('Authapp.urls')),
-    # path('api/assessments',include('assessments.urls')),
-    # path('api/donations',include('donations.urls')),
-    # path('api/ledger/',include('incidents.urls')),
+    path('api/assessments/',include('assessments.urls')),
+    path('api/donations/',include('donations.urls')),
+    path('api/ledger/',include('incidents.urls')),
     path('api/rescue/',include('rescue.urls')),
     path('api/incidents/',include('incidents.urls')),
+
+
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 
