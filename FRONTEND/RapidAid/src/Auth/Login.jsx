@@ -28,7 +28,7 @@ const Login = () => {
       localStorage.setItem("refresh", res.data.refresh);
       localStorage.setItem("user", JSON.stringify(res.data.user));
 
-      navigate("/dashboard"); // redirect after login
+      navigate("/"); // redirect after login
     } catch (err) {
       setError(err.response?.data?.detail || "Login failed");
     }

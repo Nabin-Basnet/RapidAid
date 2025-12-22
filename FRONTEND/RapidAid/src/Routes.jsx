@@ -4,6 +4,7 @@ import UserLayout from "./Layouts/UserLayout";
 import Homepage from "./pages/Hompage";
 import Login from "./Auth/Login";
 import Register from "./Auth/Register";
+import Incidents from "./Pages/Incidents";
 
 // import AdminLayout from "./Admin/Layouts/AdminLayout";
 
@@ -26,6 +27,10 @@ const router = createBrowserRouter([
   {
     path:"register",
     element: <Register />,
+  },
+  {
+    path:"/incidents",
+    element:<Incidents/>
   },
 ]);
 
