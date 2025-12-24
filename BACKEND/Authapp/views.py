@@ -1,10 +1,14 @@
 from rest_framework import generics, permissions, status
+from rest_framework.views import APIView
 from rest_framework.response import Response
-from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import get_user_model
+from django.db.models import Count, Sum
 
 from .serializers import UserDetailSerializer
-from .models import UserRole
+from incidents.models import Incident
+from rescue.models import RescueAssignment, RescueTeamMember
+from donations.models import Donor, Donation
 
 User = get_user_model()
 
@@ -60,11 +64,11 @@ class LoginAPIView(generics.GenericAPIView):
 
 
 # -----------------------------------------------------------
-# GET MY PROFILE (AUTHENTICATED USER)
+# GET CURRENT USER PROFILE
 # -----------------------------------------------------------
 class UserMeAPIView(generics.RetrieveAPIView):
     """
-    Return the authenticated user's detail
+    Return the authenticated user's basic details
     """
     serializer_class = UserDetailSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -74,7 +78,7 @@ class UserMeAPIView(generics.RetrieveAPIView):
 
 
 # -----------------------------------------------------------
-# UPDATE MY PROFILE
+# UPDATE CURRENT USER PROFILE
 # -----------------------------------------------------------
 class UpdateProfileAPIView(generics.UpdateAPIView):
     """
@@ -97,7 +101,7 @@ class UpdateProfileAPIView(generics.UpdateAPIView):
 
 
 # -----------------------------------------------------------
-# ADMIN — LIST ALL USERS
+# ADMIN: LIST ALL USERS
 # -----------------------------------------------------------
 class AdminUserListAPIView(generics.ListAPIView):
     """
@@ -110,7 +114,7 @@ class AdminUserListAPIView(generics.ListAPIView):
 
 
 # -----------------------------------------------------------
-# ADMIN — RETRIEVE ANY USER
+# ADMIN: RETRIEVE ANY USER
 # -----------------------------------------------------------
 class AdminUserDetailAPIView(generics.RetrieveAPIView):
     """
@@ -118,5 +122,69 @@ class AdminUserDetailAPIView(generics.RetrieveAPIView):
     """
     serializer_class = UserDetailSerializer
     permission_classes = [permissions.IsAdminUser]
-
     queryset = User.objects.all()
+
+
+# -----------------------------------------------------------
+# PROFILE API (Aggregated Data)
+# -----------------------------------------------------------
+class ProfileAPIView(APIView):
+    """
+    Aggregates user info + activity across incidents, rescue, and donations
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        # --- Basic user data ---
+        user_data = UserDetailSerializer(user).data
+
+        # --- Incident activity ---
+        incidents = Incident.objects.filter(reporter=user)
+        incident_stats = {
+            "total_reported": incidents.count(),
+            "verified": incidents.filter(status="verified").count(),
+            "in_rescue": incidents.filter(status="in_rescue").count(),
+            "resolved": incidents.filter(status="resolved").count(),
+        }
+        recent_incidents = incidents.order_by("-created_at")[:5].values(
+            "id", "title", "status", "incident_type", "created_at"
+        )
+
+        # --- Rescue activity ---
+        rescue_assignments = RescueAssignment.objects.filter(
+            team__members__user=user
+        ).distinct()
+        rescue_stats = {
+            "total_assignments": rescue_assignments.count(),
+            "completed": rescue_assignments.filter(status="completed").count(),
+            "active": rescue_assignments.filter(status="active").count(),
+        }
+
+        # --- Donation activity ---
+        donor = Donor.objects.filter(user=user).first()
+        donation_stats = {}
+        recent_donations = []
+        if donor:
+            donations = Donation.objects.filter(donor=donor)
+            donation_stats = {
+                "total_donations": donations.count(),
+                "total_money_donated": donations.filter(
+                    donation_type="money"
+                ).aggregate(total=Sum("amount"))["total"] or 0,
+                "items_donated": donations.filter(donation_type="item").count(),
+            }
+            recent_donations = donations.order_by("-created_at")[:5].values(
+                "donation_type", "amount", "item_description", "created_at"
+            )
+
+        # --- Final response ---
+        return Response({
+            "user": user_data,
+            "incident_activity": incident_stats,
+            "recent_incidents": list(recent_incidents),
+            "rescue_activity": rescue_stats,
+            "donation_activity": donation_stats,
+            "recent_donations": list(recent_donations),
+        })
