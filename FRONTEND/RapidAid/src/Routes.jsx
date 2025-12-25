@@ -6,6 +6,7 @@ import Login from "./Auth/Login";
 import Register from "./Auth/Register";
 import Incidents from "./Pages/incidents/Incidents";
 import IncidentDetail from "./Pages/incidents/Incidentsdetail";
+import Profile from "./Pages/Profile";
 
 // import AdminLayout from "./Admin/Layouts/AdminLayout";
 
@@ -26,8 +27,12 @@ const router = createBrowserRouter([
     element: <Login />,
   },
   {
-    path:"register",
+    path:"/register",
     element: <Register />,
+  },
+  {
+    path:"/profile",
+    element:<Profile/>
   },
    {
         path: "incidents/",

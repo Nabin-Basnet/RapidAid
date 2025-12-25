@@ -1,10 +1,13 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Menu, X, User, LogOut } from "lucide-react";
 
 /* ---------- AUTH HELPERS ---------- */
-const isAuthenticated = () => {
-  return !!localStorage.getItem("access");
+const isAuthenticated = () => !!localStorage.getItem("access");
+
+const getUser = () => {
+  const user = localStorage.getItem("user");
+  return user ? JSON.parse(user) : null;
 };
 
 const logout = () => {
@@ -16,9 +19,14 @@ const logout = () => {
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+
   const navigate = useNavigate();
+  const location = useLocation();
+  const profileRef = useRef(null);
 
   const loggedIn = isAuthenticated();
+  const user = getUser();
 
   const navItems = [
     { name: "Home", path: "/" },
@@ -28,88 +36,153 @@ export default function Navbar() {
     { name: "Transparency", path: "/transparency" },
   ];
 
+  useEffect(() => {
+    const handler = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
   const handleLogout = () => {
     logout();
-    setOpen(false);
+    setProfileOpen(false);
     navigate("/");
   };
 
   return (
-    <nav className="w-full bg-white shadow-md fixed top-0 left-0 z-50">
+    <nav className="fixed top-0 left-0 w-full z-50 backdrop-blur bg-white/80 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+        
         {/* Logo */}
-        <Link to="/" className="text-2xl font-bold text-blue-600">
+        <Link
+          to="/"
+          className="text-2xl font-bold text-blue-600 tracking-tight"
+        >
           RapidAid
         </Link>
 
-        {/* Desktop Menu */}
-        <div className="hidden md:flex items-center gap-6">
+        {/* Desktop Nav */}
+        <div className="hidden md:flex items-center gap-8">
           {navItems.map((item) => (
             <Link
               key={item.name}
               to={item.path}
-              className="text-gray-700 text-base hover:text-blue-600 transition"
+              className={`relative text-sm font-medium transition
+                ${
+                  location.pathname === item.path
+                    ? "text-blue-600"
+                    : "text-gray-700 hover:text-blue-600"
+                }
+              `}
             >
               {item.name}
+              {location.pathname === item.path && (
+                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-600 rounded-full" />
+              )}
             </Link>
           ))}
 
           {!loggedIn ? (
             <Link
               to="/login"
-              className="px-4 py-2 bg-blue-600 text-white rounded-xl shadow hover:bg-blue-700 transition"
+              className="px-5 py-2 text-sm font-semibold bg-blue-600 text-white rounded-full shadow hover:bg-blue-700 transition"
             >
               Login
             </Link>
           ) : (
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 bg-red-500 text-white rounded-xl shadow hover:bg-red-600 transition"
-            >
-              Logout
-            </button>
+            <div className="relative" ref={profileRef}>
+              <button
+                onClick={() => setProfileOpen(!profileOpen)}
+                className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center hover:ring-2 hover:ring-blue-400 transition"
+              >
+                <User size={20} />
+              </button>
+
+              {profileOpen && (
+                <div className="absolute right-0 mt-3 w-48 bg-white rounded-2xl shadow-xl overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm font-semibold text-gray-800">
+                      {user?.full_name || "User"}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {user?.email || ""}
+                    </p>
+                  </div>
+
+                  <Link
+                    to="/profile"
+                    onClick={() => setProfileOpen(false)}
+                    className="flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    <User size={16} /> My Profile
+                  </Link>
+
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50"
+                  >
+                    <LogOut size={16} /> Logout
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Mobile Button */}
+        {/* Mobile Toggle */}
         <button
           onClick={() => setOpen(!open)}
           className="md:hidden text-gray-700"
         >
-          {open ? <X size={28} /> : <Menu size={28} />}
+          {open ? <X size={26} /> : <Menu size={26} />}
         </button>
       </div>
 
       {/* Mobile Menu */}
       {open && (
-        <div className="md:hidden bg-white shadow-inner px-4 pt-2 pb-4 flex flex-col gap-4">
+        <div className="md:hidden bg-white shadow-xl px-6 py-6 space-y-4">
           {navItems.map((item) => (
             <Link
               key={item.name}
               to={item.path}
               onClick={() => setOpen(false)}
-              className="text-gray-700 text-lg hover:text-blue-600 transition"
+              className="block text-gray-800 text-base font-medium hover:text-blue-600"
             >
               {item.name}
             </Link>
           ))}
 
-          {!loggedIn ? (
-            <Link
-              to="/login"
-              onClick={() => setOpen(false)}
-              className="w-full text-center px-4 py-2 bg-blue-600 text-white rounded-xl shadow hover:bg-blue-700 transition"
-            >
-              Login
-            </Link>
-          ) : (
-            <button
-              onClick={handleLogout}
-              className="w-full text-center px-4 py-2 bg-red-500 text-white rounded-xl shadow hover:bg-red-600 transition"
-            >
-              Logout
-            </button>
-          )}
+          <div className="pt-4">
+            {!loggedIn ? (
+              <Link
+                to="/login"
+                onClick={() => setOpen(false)}
+                className="block w-full text-center py-2 bg-blue-600 text-white rounded-xl font-semibold"
+              >
+                Login
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/profile"
+                  onClick={() => setOpen(false)}
+                  className="block text-center py-2 mb-2 border border-blue-600 text-blue-600 rounded-xl font-semibold"
+                >
+                  My Profile
+                </Link>
+
+                <button
+                  onClick={handleLogout}
+                  className="block w-full py-2 bg-red-500 text-white rounded-xl font-semibold"
+                >
+                  Logout
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
     </nav>
