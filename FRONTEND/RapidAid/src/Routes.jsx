@@ -1,41 +1,38 @@
 import { createBrowserRouter } from "react-router-dom";
 import UserLayout from "./Layouts/UserLayout";
-
-import Homepage from "./pages/Hompage";
+import Homepage from "./Pages/Hompage";
 import Login from "./Auth/Login";
 import Register from "./Auth/Register";
 import Incidents from "./Pages/incidents/Incidents";
 import IncidentDetail from "./Pages/incidents/Incidentsdetail";
 import Profile from "./Pages/Profile";
-
-// import AdminLayout from "./Admin/Layouts/AdminLayout";
+import DonationPage from "./Pages/donations/donationPage";
+import ReportIncident from "./Pages/incidents/ReportIncidents";
+// import DonationPage from "./Pages/donations/DonationPage";
 
 const router = createBrowserRouter([
   {
-   path: "/",
+    path: "/",
     element: <UserLayout />,
     children: [
       {
-        path: "",
+        index: true,
         element: <Homepage />,
       },
-      
-    ],
-  },
-  {
-    path:"/login",
-    element: <Login />,
-  },
-  {
-    path:"/register",
-    element: <Register />,
-  },
-  {
-    path:"/profile",
-    element:<Profile/>
-  },
-   {
-        path: "incidents/",
+      {
+        path: "donations",
+        element: <DonationPage />,
+      },
+      {
+        path:"/report",
+        element:<ReportIncident/>
+      },
+      {
+        path: "profile",
+        element: <Profile />,
+      },
+      {
+        path: "incidents",
         children: [
           {
             index: true,
@@ -47,6 +44,16 @@ const router = createBrowserRouter([
           },
         ],
       },
+    ],
+  },
+  {
+    path: "/login",
+    element: <Login />,
+  },
+  {
+    path: "/register",
+    element: <Register />,
+  },
 ]);
 
 export default router;
