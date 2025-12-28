@@ -1,11 +1,13 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.parsers import MultiPartParser, FormParser
 
 from .models import (
     Incident,
     IncidentVerification,
-    IncidentStatus
+    IncidentStatus,
+    IncidentMedia
 )
 from .serializers import (
     IncidentSerializer,
@@ -20,15 +22,30 @@ class IncidentViewSet(viewsets.ModelViewSet):
     serializer_class = IncidentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    # Required for file uploads
+    parser_classes = [MultiPartParser, FormParser]
+
     def get_queryset(self):
         return (
             Incident.objects
             .select_related("reporter")
             .prefetch_related("media", "verifications")
+            .order_by("-created_at")
         )
 
     def perform_create(self, serializer):
-        serializer.save(reporter=self.request.user)
+        # 1️⃣ Save incident with the authenticated user as reporter
+        incident = serializer.save(reporter=self.request.user)
+
+        # 2️⃣ Save uploaded media
+        files = self.request.FILES.getlist("media")
+        for file in files:
+            media_type = "video" if file.content_type.startswith("video") else "photo"
+            IncidentMedia.objects.create(
+                incident=incident,
+                file=file,
+                media_type=media_type
+            )
 
     # -------------------------------
     # Incident Status Actions
@@ -70,9 +87,6 @@ class IncidentVerificationViewSet(viewsets.ModelViewSet):
         verification = serializer.save(verified_by=self.request.user)
         self._update_incident_status(verification)
 
-    # -------------------------------
-    # Internal helper
-    # -------------------------------
     def _update_incident_status(self, verification):
         incident = verification.incident
 

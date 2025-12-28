@@ -54,8 +54,10 @@ class IncidentVerificationSerializer(serializers.ModelSerializer):
 #                  INCIDENT
 # ==================================================
 class IncidentSerializer(serializers.ModelSerializer):
+    # Reporter
     reporter_name = serializers.SerializerMethodField()
 
+    # Display fields
     incident_type_display = serializers.CharField(
         source="get_incident_type_display",
         read_only=True
@@ -69,6 +71,7 @@ class IncidentSerializer(serializers.ModelSerializer):
         read_only=True
     )
 
+    # Nested
     media = IncidentMediaSerializer(many=True, read_only=True)
     verifications = IncidentVerificationSerializer(many=True, read_only=True)
 
@@ -92,8 +95,7 @@ class IncidentSerializer(serializers.ModelSerializer):
             "severity_display",
 
             # Location
-            "latitude",
-            "longitude",
+            "location",
 
             # Status
             "status",
@@ -112,11 +114,18 @@ class IncidentSerializer(serializers.ModelSerializer):
         ]
 
         read_only_fields = [
+            "id",
+            "reporter",
             "status",
             "created_at",
             "updated_at",
+            "media",
+            "verifications",
         ]
 
+    # ------------------------------
+    # Helpers
+    # ------------------------------
     def get_reporter_name(self, obj):
         if obj.reporter:
             return obj.reporter.full_name or obj.reporter.email

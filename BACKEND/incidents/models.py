@@ -59,8 +59,8 @@ class Incident(models.Model):
         default=Severity.LOW
     )
 
-    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    # ✅ SIMPLE TEXT LOCATION
+    location = models.CharField(max_length=255)
 
     status = models.CharField(
         max_length=30,
@@ -81,7 +81,7 @@ class Incident(models.Model):
         ]
 
     def __str__(self):
-        return f"({self.get_incident_type_display()}) {self.title} - {self.reporter}"
+        return f"({self.get_incident_type_display()}) {self.title} - {self.location}"
 
 
 # -------------------------------
@@ -94,6 +94,7 @@ class IncidentMedia(models.Model):
         on_delete=models.CASCADE,
         related_name='media'
     )
+
     file = models.FileField(upload_to='incident_media/%Y/%m/%d/')
     media_type = models.CharField(
         max_length=10,
@@ -116,6 +117,7 @@ class IncidentVerification(models.Model):
         on_delete=models.CASCADE,
         related_name='verifications'
     )
+
     verified_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
