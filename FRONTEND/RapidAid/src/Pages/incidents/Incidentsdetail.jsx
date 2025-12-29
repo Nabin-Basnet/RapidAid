@@ -35,9 +35,7 @@ const IncidentDetail = () => {
         );
         setIncident(res.data);
       } catch (err) {
-        setError(
-          err.response?.data?.detail || "Failed to load incident"
-        );
+        setError(err.response?.data?.detail || "Failed to load incident");
       } finally {
         setLoading(false);
       }
@@ -150,10 +148,10 @@ const IncidentDetail = () => {
             {incident.description}
           </p>
 
-          {incident.latitude && incident.longitude && (
+          {incident.location && (
             <div className="mt-4 flex items-center gap-2 text-gray-600">
               <MapPin size={18} />
-              {incident.latitude}, {incident.longitude}
+              {incident.location}
             </div>
           )}
         </div>
