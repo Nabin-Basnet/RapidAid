@@ -8,6 +8,7 @@ import IncidentDetail from "./Pages/incidents/Incidentsdetail";
 import Profile from "./Pages/Profile";
 import DonationPage from "./Pages/donations/donationPage";
 import ReportIncident from "./Pages/incidents/ReportIncidents";
+import DonorForm from "./Pages/donations/DonorForm";
 // import DonationPage from "./Pages/donations/DonationPage";
 
 const router = createBrowserRouter([
@@ -20,8 +21,12 @@ const router = createBrowserRouter([
         element: <Homepage />,
       },
       {
-        path: "donations",
+        path: "/donations",
         element: <DonationPage />,
+      },
+      {
+        path:"/donate",
+        element:<DonorForm/>
       },
       {
         path:"/report",
