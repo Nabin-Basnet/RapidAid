@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Menu, X, User, LogOut } from "lucide-react";
+import axiosInstance from "../api/Axios"; // adjust path if needed
 
 /* ---------- AUTH HELPERS ---------- */
 const isAuthenticated = () => !!localStorage.getItem("access");
@@ -32,7 +33,6 @@ export default function Navbar() {
     { name: "Home", path: "/" },
     { name: "Incidents", path: "/incidents" },
     { name: "Report Incident", path: "/report" },
-    { name: "Donate", path: "/donations" },
     { name: "Transparency", path: "/transparency" },
   ];
 
@@ -52,10 +52,34 @@ export default function Navbar() {
     navigate("/");
   };
 
+  /* ---------- DONATE LOGIC ---------- */
+  const handleDonateClick = async () => {
+    // 1. Not logged in
+    if (!loggedIn) {
+      navigate("/login");
+      return;
+    }
+
+    try {
+      // 2. Check donor existence
+      await axiosInstance.get("/donors/me/");
+      // Donor exists
+      navigate("/donations");
+    } catch (error) {
+      if (error.response?.status === 404) {
+        // Donor does not exist
+        navigate("/doner");
+      } else {
+        console.error("Error checking donor status:", error);
+      }
+    }
+  };
+  /* ---------------------------------- */
+
   return (
     <nav className="fixed top-0 left-0 w-full z-50 backdrop-blur bg-white/80 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-        
+
         {/* Logo */}
         <Link
           to="/"
@@ -84,6 +108,14 @@ export default function Navbar() {
               )}
             </Link>
           ))}
+
+          {/* Donate Button (Desktop) */}
+          <button
+            onClick={handleDonateClick}
+            className="relative text-sm font-medium text-gray-700 hover:text-blue-600 transition"
+          >
+            Donate
+          </button>
 
           {!loggedIn ? (
             <Link
@@ -154,6 +186,17 @@ export default function Navbar() {
               {item.name}
             </Link>
           ))}
+
+          {/* Donate Button (Mobile) */}
+          <button
+            onClick={() => {
+              setOpen(false);
+              handleDonateClick();
+            }}
+            className="block w-full text-left text-gray-800 text-base font-medium hover:text-blue-600"
+          >
+            Donate
+          </button>
 
           <div className="pt-4">
             {!loggedIn ? (

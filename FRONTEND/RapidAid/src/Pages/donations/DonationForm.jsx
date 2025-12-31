@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "../../api/Axios";
 
-const DonorForm = ({ onSuccess }) => {
+const DonationForm = ({ onSuccess }) => {
   const [donorType, setDonorType] = useState("individual");
 
   const submitHandler = async (e) => {
@@ -38,4 +38,4 @@ const DonorForm = ({ onSuccess }) => {
   );
 };
 
-export default DonorForm;
+export default DonationForm;

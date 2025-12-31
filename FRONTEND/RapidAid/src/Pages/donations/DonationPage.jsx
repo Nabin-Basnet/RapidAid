@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "../../api/Axios";
-import BecomeDonorForm from "./DonorForm";
+import BecomeDonorForm from "./DonationForm";
 import DonorProfile from "./DonorProfile";
 import DonationHistory from "./DonorDetails";
 
