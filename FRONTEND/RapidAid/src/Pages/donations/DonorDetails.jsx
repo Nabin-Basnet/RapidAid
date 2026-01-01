@@ -20,7 +20,7 @@ const DonorDetails = () => {
         <h2 className="text-xl font-semibold">My Donations</h2>
 
         <button
-          onClick={() => navigate("/donate")}
+          onClick={() => navigate("/donates")}
           className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
         >
           Donate Now

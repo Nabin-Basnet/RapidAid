@@ -1,44 +1,41 @@
 import { useState } from "react";
-import axiosInstance from "../../api/Axios"; // adjust path if needed
+import { useNavigate } from "react-router-dom";
+import axiosInstance from "../../api/Axios";
 
 const DonerRegister = () => {
-  const [formData, setFormData] = useState({
-    user_name: "",
-    donor_type: "individual",
-  });
+  const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem("user"));
 
+  const [donorType, setDonorType] = useState("individual");
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setSuccess("");
     setError("");
 
+    if (!user?.id) {
+      setError("User not found. Please login again.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await axiosInstance.post("/donations/donors/", formData);
-
-      setSuccess("Donor ID created successfully 🎉");
-      console.log("Donor Created:", response.data);
-
-      setFormData({
-        user_name: "",
-        donor_type: "individual",
+      await axiosInstance.post("/donations/donors/", {
+        user: user.id,          // ✅ REQUIRED BY SERIALIZER
+        donor_type: donorType,  // ✅ REQUIRED
       });
+
+      // optional cache
+      localStorage.setItem("has_donor", "true");
+
+      navigate("/donations");
     } catch (err) {
       console.error(err);
       setError(
         err.response?.data?.detail ||
-          "Failed to create Donor ID. Please try again."
+          "Failed to create donor. You may already be registered."
       );
     } finally {
       setLoading(false);
@@ -49,14 +46,8 @@ const DonerRegister = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
         <h2 className="text-2xl font-bold text-gray-800 text-center mb-6">
-          Create Donor ID
+          Donor Registration
         </h2>
-
-        {success && (
-          <div className="mb-4 p-3 text-sm text-green-700 bg-green-100 rounded-lg">
-            {success}
-          </div>
-        )}
 
         {error && (
           <div className="mb-4 p-3 text-sm text-red-700 bg-red-100 rounded-lg">
@@ -65,19 +56,16 @@ const DonerRegister = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* User Name */}
+          {/* User Name (Read Only Display) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Full Name
             </label>
             <input
               type="text"
-              name="user_name"
-              value={formData.user_name}
-              onChange={handleChange}
-              required
-              placeholder="Enter your full name"
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              value={user?.full_name || ""}
+              disabled
+              className="w-full px-4 py-2 border rounded-lg bg-gray-100"
             />
           </div>
 
@@ -87,9 +75,8 @@ const DonerRegister = () => {
               Donor Type
             </label>
             <select
-              name="donor_type"
-              value={formData.donor_type}
-              onChange={handleChange}
+              value={donorType}
+              onChange={(e) => setDonorType(e.target.value)}
               className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
             >
               <option value="individual">Individual</option>
@@ -103,7 +90,7 @@ const DonerRegister = () => {
             disabled={loading}
             className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
           >
-            {loading ? "Creating..." : "Create Donor ID"}
+            {loading ? "Registering..." : "Register as Donor"}
           </button>
         </form>
       </div>
