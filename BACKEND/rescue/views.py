@@ -1,63 +1,82 @@
-from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
+from rest_framework import generics, permissions
+from rest_framework.exceptions import PermissionDenied
+from django.utils import timezone
 
-from .models import (
-    RescueTeam,
-    RescueTeamMember,
-    RescueAssignment,
-    RescueUpdate
-)
+from .models import RescueTeam, RescueTeamMember, RescueAssignment
 from .serializers import (
     RescueTeamSerializer,
     RescueTeamMemberSerializer,
-    RescueAssignmentSerializer,
-    RescueUpdateSerializer
+    RescueAssignmentSerializer
 )
+from Authapp.permissions import IsAdminRole
+from incidents.models import IncidentStatus
 
 
-# ----------------------------------
-# Rescue Team API
-# ----------------------------------
-class RescueTeamViewSet(viewsets.ModelViewSet):
-    queryset = RescueTeam.objects.all()
+# =========================================
+# ADMIN: CREATE RESCUE TEAM
+# =========================================
+class CreateRescueTeamAPIView(generics.CreateAPIView):
     serializer_class = RescueTeamSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminRole]
 
 
-# ----------------------------------
-# Rescue Team Member API
-# ----------------------------------
-class RescueTeamMemberViewSet(viewsets.ModelViewSet):
-    queryset = RescueTeamMember.objects.select_related("user", "team")
+# =========================================
+# ADMIN: ADD TEAM MEMBER
+# =========================================
+class AddRescueTeamMemberAPIView(generics.CreateAPIView):
     serializer_class = RescueTeamMemberSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminRole]
 
 
-# ----------------------------------
-# Rescue Assignment API
-# ----------------------------------
-class RescueAssignmentViewSet(viewsets.ModelViewSet):
-    queryset = RescueAssignment.objects.select_related("team", "incident")
+# =========================================
+# ADMIN: ASSIGN TEAM TO INCIDENT
+# =========================================
+class AssignRescueTeamAPIView(generics.CreateAPIView):
+    serializer_class = RescueAssignmentSerializer
+    permission_classes = [IsAdminRole]
+
+    def perform_create(self, serializer):
+        incident = serializer.validated_data["incident"]
+
+        if incident.status != IncidentStatus.VERIFIED:
+            raise PermissionDenied("Incident must be verified")
+
+        serializer.save()
+
+
+# =========================================
+# LIST RESCUE ASSIGNMENTS (PUBLIC)
+# =========================================
+class RescueAssignmentListAPIView(generics.ListAPIView):
     serializer_class = RescueAssignmentSerializer
     permission_classes = [permissions.IsAuthenticated]
-
-    @action(detail=True, methods=["post"])
-    def mark_completed(self, request, pk=None):
-        assignment = self.get_object()
-        assignment.status = "completed"
-        assignment.completion_time = timezone.now()
-        assignment.save()
-        return Response(
-            {"message": "Assignment marked as completed"},
-            status=status.HTTP_200_OK
-        )
+    queryset = RescueAssignment.objects.all().order_by("-id")
 
 
-# ----------------------------------
-# Rescue Update API
-# ----------------------------------
-class RescueUpdateViewSet(viewsets.ModelViewSet):
-    queryset = RescueUpdate.objects.select_related("assignment")
-    serializer_class = RescueUpdateSerializer
+# =========================================
+# UPDATE RESCUE STATUS (TEAM MEMBER)
+# =========================================
+class UpdateRescueStatusAPIView(generics.UpdateAPIView):
+    serializer_class = RescueAssignmentSerializer
     permission_classes = [permissions.IsAuthenticated]
+    queryset = RescueAssignment.objects.all()
+
+    def perform_update(self, serializer):
+        assignment = self.get_object()
+        user = self.request.user
+
+        # Only rescue team members or admin
+        if not (
+            user.is_admin_role or
+            assignment.team.members.filter(user=user).exists()
+        ):
+            raise PermissionDenied("Not allowed")
+
+        status = self.request.data.get("status")
+
+        if status == "active":
+            serializer.save(started_at=timezone.now())
+        elif status == "completed":
+            serializer.save(completed_at=timezone.now())
+        else:
+            serializer.save()
