@@ -1,25 +1,43 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from django.conf import settings
-from django.conf.urls.static import static
-
-
+from django.urls import path
 from .views import (
-    IncidentViewSet,
-    IncidentVerificationViewSet
-)
-
-router = DefaultRouter()
-router.register(r"incidents", IncidentViewSet, basename="incident")
-router.register(
-    r"incident-verifications",
-    IncidentVerificationViewSet,
-    basename="incident-verification"
+    ReportIncidentAPIView,
+    IncidentMediaUploadAPIView,
+    IncidentListAPIView,
+    IncidentDetailAPIView,
+    IncidentAdminUpdateAPIView,
 )
 
 urlpatterns = [
-    path("", include(router.urls)),
- ] 
+    # ----------------------------------------
+    # Citizen reports an incident
+    # ----------------------------------------
+    path("report/", ReportIncidentAPIView.as_view(), name="report-incident"),
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # ----------------------------------------
+    # Upload media for a specific incident
+    # ----------------------------------------
+    path(
+        "media/upload/<int:incident_id>/",
+        IncidentMediaUploadAPIView.as_view(),
+        name="incident-media-upload"
+    ),
+
+    # ----------------------------------------
+    # List of incidents (all approved/reported)
+    # ----------------------------------------
+    path("", IncidentListAPIView.as_view(), name="incident-list"),
+
+    # ----------------------------------------
+    # Incident detail
+    # ----------------------------------------
+    path("<int:pk>/", IncidentDetailAPIView.as_view(), name="incident-detail"),
+
+    # ----------------------------------------
+    # Admin: update incident (verify, progress, close)
+    # ----------------------------------------
+    path(
+        "admin/<int:pk>/update/",
+        IncidentAdminUpdateAPIView.as_view(),
+        name="admin-incident-update"
+    ),
+]

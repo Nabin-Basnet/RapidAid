@@ -1,98 +1,84 @@
-from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework import generics, permissions
+from rest_framework.exceptions import PermissionDenied
 
-from .models import (
-    Incident,
-    IncidentVerification,
-    IncidentStatus,
-    IncidentMedia
-)
+from .models import Incident, IncidentMedia, IncidentStatus
 from .serializers import (
-    IncidentSerializer,
-    IncidentVerificationSerializer
+    IncidentCreateSerializer,
+    IncidentPublicSerializer,
+    IncidentAdminUpdateSerializer,
+    IncidentMediaSerializer
 )
 
+from Authapp.permissions import IsAdminRole
 
-# ==================================================
-#                   INCIDENT
-# ==================================================
-class IncidentViewSet(viewsets.ModelViewSet):
-    serializer_class = IncidentSerializer
+
+# ======================================================
+# REPORT INCIDENT (CITIZEN)
+# ======================================================
+
+class ReportIncidentAPIView(generics.CreateAPIView):
+    serializer_class = IncidentCreateSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    # Required for file uploads
-    parser_classes = [MultiPartParser, FormParser]
+    def perform_create(self, serializer):
+        if not self.request.user.is_citizen:
+            raise PermissionDenied("Only citizens can report incidents")
+        serializer.save()
 
-    def get_queryset(self):
-        return (
-            Incident.objects
-            .select_related("reporter")
-            .prefetch_related("media", "verifications")
-            .order_by("-created_at")
-        )
+
+# ======================================================
+# INCIDENT MEDIA UPLOAD
+# ======================================================
+
+class IncidentMediaUploadAPIView(generics.CreateAPIView):
+    serializer_class = IncidentMediaSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        # 1️⃣ Save incident with the authenticated user as reporter
-        incident = serializer.save(reporter=self.request.user)
+        incident_id = self.kwargs.get("incident_id")
+        incident = Incident.objects.get(id=incident_id)
 
-        # 2️⃣ Save uploaded media
-        files = self.request.FILES.getlist("media")
-        for file in files:
-            media_type = "video" if file.content_type.startswith("video") else "photo"
-            IncidentMedia.objects.create(
-                incident=incident,
-                file=file,
-                media_type=media_type
-            )
+        if (
+            self.request.user != incident.reporter
+            and not self.request.user.is_admin_role
+        ):
+            raise PermissionDenied("Not allowed")
 
-    # -------------------------------
-    # Incident Status Actions
-    # -------------------------------
-    @action(detail=True, methods=["post"])
-    def mark_in_rescue(self, request, pk=None):
-        incident = self.get_object()
-        incident.status = IncidentStatus.IN_RESCUE
-        incident.save(update_fields=["status"])
-        return Response(
-            {"message": "Incident marked as IN RESCUE"},
-            status=status.HTTP_200_OK
-        )
-
-    @action(detail=True, methods=["post"])
-    def resolve(self, request, pk=None):
-        incident = self.get_object()
-        incident.status = IncidentStatus.RESOLVED
-        incident.save(update_fields=["status"])
-        return Response(
-            {"message": "Incident resolved successfully"},
-            status=status.HTTP_200_OK
+        serializer.save(
+            incident=incident,
+            uploaded_by=self.request.user
         )
 
 
-# ==================================================
-#           INCIDENT VERIFICATION
-# ==================================================
-class IncidentVerificationViewSet(viewsets.ModelViewSet):
-    serializer_class = IncidentVerificationSerializer
+# ======================================================
+# PUBLIC INCIDENT LIST
+# ======================================================
+
+class IncidentListAPIView(generics.ListAPIView):
+    serializer_class = IncidentPublicSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return IncidentVerification.objects.select_related(
-            "incident", "verified_by"
-        )
+        return Incident.objects.exclude(
+            status=IncidentStatus.REJECTED
+        ).order_by("-created_at")
 
-    def perform_create(self, serializer):
-        verification = serializer.save(verified_by=self.request.user)
-        self._update_incident_status(verification)
 
-    def _update_incident_status(self, verification):
-        incident = verification.incident
+# ======================================================
+# INCIDENT DETAIL
+# ======================================================
 
-        if verification.status == "approved":
-            incident.status = IncidentStatus.VERIFIED
-        elif verification.status in ["rejected", "duplicate"]:
-            incident.status = IncidentStatus.REJECTED
+class IncidentDetailAPIView(generics.RetrieveAPIView):
+    serializer_class = IncidentPublicSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Incident.objects.all()
 
-        incident.save(update_fields=["status"])
+
+# ======================================================
+# ADMIN INCIDENT UPDATE
+# ======================================================
+
+class IncidentAdminUpdateAPIView(generics.UpdateAPIView):
+    serializer_class = IncidentAdminUpdateSerializer
+    permission_classes = [IsAdminRole]
+    queryset = Incident.objects.all()
