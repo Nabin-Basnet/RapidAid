@@ -1,32 +1,64 @@
-from rest_framework import viewsets, permissions
-from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import generics, permissions
+from rest_framework.exceptions import PermissionDenied
 
-from .models import DamageAssessment, AffectedFamily
+from .models import AffectedFamily, LossAssessment
 from .serializers import (
-    DamageAssessmentSerializer,
-    AffectedFamilySerializer
+    AffectedFamilySerializer,
+    LossAssessmentSerializer
 )
+from Authapp.permissions import IsAdminRole
+from incidents.models import IncidentStatus
 
 
-# --------------------------------------------------
-#          DAMAGE ASSESSMENT API
-# --------------------------------------------------
-class DamageAssessmentViewSet(viewsets.ModelViewSet):
-    queryset = DamageAssessment.objects.select_related(
-        "incident", "assessed_by"
-    )
-    serializer_class = DamageAssessmentSerializer
+# =========================================
+# ADD AFFECTED FAMILY (ADMIN / ASSESSMENT)
+# =========================================
+class AddAffectedFamilyAPIView(generics.CreateAPIView):
+    serializer_class = AffectedFamilySerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(assessed_by=self.request.user)
+        user = self.request.user
+        incident = serializer.validated_data["incident"]
+
+        if not (user.is_admin_role or user.is_assessment_team):
+            raise PermissionDenied("Not allowed")
+
+        if incident.status != IncidentStatus.VERIFIED:
+            raise PermissionDenied("Incident must be verified first")
+
+        serializer.save()
 
 
-# --------------------------------------------------
-#           AFFECTED FAMILY API
-# --------------------------------------------------
-class AffectedFamilyViewSet(viewsets.ModelViewSet):
-    queryset = AffectedFamily.objects.select_related("incident")
+# =========================================
+# LIST AFFECTED FAMILIES
+# =========================================
+class AffectedFamilyListAPIView(generics.ListAPIView):
     serializer_class = AffectedFamilySerializer
     permission_classes = [permissions.IsAuthenticated]
+    queryset = AffectedFamily.objects.all().order_by("-created_at")
+
+
+# =========================================
+# LOSS ASSESSMENT CREATE / UPDATE
+# =========================================
+class LossAssessmentAPIView(generics.CreateAPIView):
+    serializer_class = LossAssessmentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        if not (user.is_admin_role or user.is_assessment_team):
+            raise PermissionDenied("Not allowed")
+
+        serializer.save(assessed_by=user)
+
+
+# =========================================
+# LOSS ASSESSMENT DETAIL
+# =========================================
+class LossAssessmentDetailAPIView(generics.RetrieveAPIView):
+    serializer_class = LossAssessmentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = LossAssessment.objects.all()

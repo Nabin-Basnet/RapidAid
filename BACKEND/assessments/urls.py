@@ -1,15 +1,17 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-
+from django.urls import path
 from .views import (
-    DamageAssessmentViewSet,
-    AffectedFamilyViewSet
+    AddAffectedFamilyAPIView,
+    AffectedFamilyListAPIView,
+    LossAssessmentAPIView,
+    LossAssessmentDetailAPIView,
 )
 
-router = DefaultRouter()
-router.register(r"damage-assessments", DamageAssessmentViewSet)
-router.register(r"affected-families", AffectedFamilyViewSet)
-
 urlpatterns = [
-    path("", include(router.urls)),
+    # Affected families
+    path("families/add/", AddAffectedFamilyAPIView.as_view(), name="add-family"),
+    path("families/", AffectedFamilyListAPIView.as_view(), name="family-list"),
+
+    # Loss assessment
+    path("loss/add/", LossAssessmentAPIView.as_view(), name="loss-add"),
+    path("loss/<int:pk>/", LossAssessmentDetailAPIView.as_view(), name="loss-detail"),
 ]

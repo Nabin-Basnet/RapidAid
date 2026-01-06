@@ -1,70 +1,70 @@
 from django.db import models
-from django.utils import timezone
 from django.conf import settings
-
-User = settings.AUTH_USER_MODEL
-
-
-# --------------------------------------
-#           DAMAGE ASSESSMENT
-# --------------------------------------
-
-class DamageAssessment(models.Model):
-    incident = models.OneToOneField(
-        'incidents.Incident',
-        on_delete=models.CASCADE,
-        related_name='damage_assessment'
-    )
-
-    casualties = models.PositiveIntegerField(default=0)
-    injured = models.PositiveIntegerField(default=0)
-    displaced_families = models.PositiveIntegerField(default=0)
-
-    economic_loss_estimate = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        null=True,
-        blank=True
-    )
-
-    description = models.TextField(blank=True)
-
-    assessed_by = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='assessments_done'
-    )
-
-    assessed_at = models.DateTimeField(default=timezone.now)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"Assessment for Incident {self.incident_id}"
+from incidents.models import Incident
 
 
-# --------------------------------------
-#              AFFECTED FAMILY
-# --------------------------------------
-
+# =========================================
+# AFFECTED FAMILY
+# =========================================
 class AffectedFamily(models.Model):
     incident = models.ForeignKey(
-        'incidents.Incident',
+        Incident,
         on_delete=models.CASCADE,
-        related_name='affected_families'
+        related_name="affected_families"
     )
 
     head_of_family_name = models.CharField(max_length=150)
-    number_of_members = models.PositiveIntegerField(default=1)
-    contact = models.CharField(max_length=100, blank=True)
+    contact_number = models.CharField(max_length=20)
+    address = models.CharField(max_length=255)
 
-    address = models.TextField(blank=True)
-    lost_home = models.BooleanField(default=False)
-    notes = models.TextField(blank=True)
+    total_members = models.PositiveIntegerField()
+    injured_members = models.PositiveIntegerField(default=0)
+    deceased_members = models.PositiveIntegerField(default=0)
 
-    created_at = models.DateTimeField(default=timezone.now)
+    is_verified = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.head_of_family_name} ({self.number_of_members})"
+        return f"{self.head_of_family_name} - {self.incident.title}"
+
+
+# =========================================
+# LOSS ASSESSMENT
+# =========================================
+class LossAssessment(models.Model):
+    family = models.OneToOneField(
+        AffectedFamily,
+        on_delete=models.CASCADE,
+        related_name="loss_assessment"
+    )
+
+    house_damage = models.CharField(
+        max_length=50,
+        choices=[
+            ("none", "No Damage"),
+            ("partial", "Partial Damage"),
+            ("full", "Fully Damaged"),
+        ]
+    )
+
+    estimated_property_loss = models.DecimalField(
+        max_digits=12,
+        decimal_places=2
+    )
+
+    livestock_lost = models.PositiveIntegerField(default=0)
+    crops_lost = models.BooleanField(default=False)
+
+    remarks = models.TextField(blank=True)
+
+    assessed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True
+    )
+
+    assessed_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Loss Assessment - {self.family.head_of_family_name}"
