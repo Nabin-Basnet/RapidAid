@@ -1,86 +1,72 @@
 from django.db import models
 from django.conf import settings
-from assessments.models import AffectedFamily
 from incidents.models import Incident
 
 
+# ----------------------------------
+# DONOR PROFILE (1 USER = 1 DONOR)
+# ----------------------------------
 class Donor(models.Model):
-    USER_TYPE = [
-        ('individual', 'Individual'),
-        ('organization', 'Organization'),
-    ]
-
-    user = models.ForeignKey(
+    user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='donor_profile'
+        related_name="donor_profile"
     )
-    donor_type = models.CharField(max_length=20, choices=USER_TYPE)
-
-    def __str__(self):
-        return f"{self.user.full_name} - {self.donor_type}"
-
-
-class Donation(models.Model):
-    DONATION_TYPE = [
-        ('money', 'Money'),
-        ('item', 'Item'),
-    ]
-
-    donor = models.ForeignKey(
-        Donor,
-        on_delete=models.PROTECT,
-        related_name='donations'
-    )
-    incident = models.ForeignKey(
-        Incident,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name='incident_donations'
-    )
-    family = models.ForeignKey(
-        AffectedFamily,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name='family_donations'
-    )
-    
-    donation_type = models.CharField(max_length=10, choices=DONATION_TYPE)
-
-    # money fields
-    amount = models.FloatField(null=True, blank=True)
-
-    # item fields
-    item_description = models.CharField(max_length=255, null=True, blank=True)
-    quantity = models.IntegerField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Donation by {self.donor.user.full_name} ({self.donation_type})"
+        return self.user.email
 
 
-class DonationDistribution(models.Model):
-    donation = models.ForeignKey(
-        Donation,
-        on_delete=models.PROTECT,
-        related_name='distributions'
+# ----------------------------------
+# DONATION
+# ----------------------------------
+class Donation(models.Model):
+
+    DONATION_TYPE = (
+        ("money", "Money"),
+        ("item", "Item"),
     )
-    family = models.ForeignKey(
-        AffectedFamily,
+
+    donor = models.ForeignKey(
+        Donor,
         on_delete=models.PROTECT,
-        related_name='received_donations'
+        related_name="donations"
     )
-    distributed_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
+
+    incident = models.ForeignKey(
+        Incident,
+        on_delete=models.CASCADE,
+        related_name="donations"
+    )
+
+    donation_type = models.CharField(
+        max_length=10,
+        choices=DONATION_TYPE
+    )
+
+    # Money
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
         null=True,
-        related_name='distributed_donations'
+        blank=True
     )
-    proof_photo_url = models.URLField(null=True, blank=True)
-    distributed_at = models.DateTimeField(auto_now_add=True)
+
+    # Item
+    item_name = models.CharField(
+        max_length=255,
+        blank=True
+    )
+    quantity = models.PositiveIntegerField(
+        null=True,
+        blank=True
+    )
+
+    is_anonymous = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Distributed to {self.family.head_of_family_name}"
+        return f"{self.donation_type} donation to {self.incident.title}"

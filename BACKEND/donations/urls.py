@@ -1,17 +1,12 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-
+from django.urls import path
 from .views import (
-    DonorViewSet,
-    DonationViewSet,
-    DonationDistributionViewSet
+    CreateDonorAPIView,
+    CreateDonationAPIView,
+    DonationListAPIView,
 )
 
-router = DefaultRouter()
-router.register(r"donors", DonorViewSet)
-router.register(r"donations", DonationViewSet)
-router.register(r"donation-distributions", DonationDistributionViewSet)
-
 urlpatterns = [
-    path("", include(router.urls)),
+    path("donor/create/", CreateDonorAPIView.as_view()),
+    path("donate/", CreateDonationAPIView.as_view()),
+    path("list/", DonationListAPIView.as_view()),
 ]

@@ -1,47 +1,52 @@
-from rest_framework import viewsets, permissions
-from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import generics, permissions
+from rest_framework.exceptions import PermissionDenied
 
-from .models import Donor, Donation, DonationDistribution
-from .serializers import (
-    DonorSerializer,
-    DonationSerializer,
-    DonationDistributionSerializer
-)
+from .models import Donor, Donation
+from .serializers import DonorSerializer, DonationSerializer
+from incidents.models import IncidentStatus
 
 
-# --------------------------------------------------
-#                   DONOR API
-# --------------------------------------------------
-class DonorViewSet(viewsets.ModelViewSet):
-    queryset = Donor.objects.select_related("user")
+# ==================================
+# CREATE DONOR PROFILE
+# ==================================
+class CreateDonorAPIView(generics.CreateAPIView):
     serializer_class = DonorSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        user = self.request.user
+
+        if hasattr(user, "donor_profile"):
+            raise PermissionDenied("Donor profile already exists")
+
+        serializer.save(user=user)
 
 
-# --------------------------------------------------
-#                  DONATION API
-# --------------------------------------------------
-class DonationViewSet(viewsets.ModelViewSet):
-    queryset = Donation.objects.select_related(
-        "donor", "incident", "family"
-    )
+# ==================================
+# MAKE DONATION
+# ==================================
+class CreateDonationAPIView(generics.CreateAPIView):
     serializer_class = DonationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-
-# --------------------------------------------------
-#           DONATION DISTRIBUTION API
-# --------------------------------------------------
-class DonationDistributionViewSet(viewsets.ModelViewSet):
-    queryset = DonationDistribution.objects.select_related(
-        "donation", "family", "distributed_by"
-    )
-    serializer_class = DonationDistributionSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
     def perform_create(self, serializer):
-        serializer.save(distributed_by=self.request.user)
+        user = self.request.user
+
+        if not hasattr(user, "donor_profile"):
+            raise PermissionDenied("Create donor profile first")
+
+        incident = serializer.validated_data["incident"]
+
+        if incident.status == IncidentStatus.RESOLVED:
+            raise PermissionDenied("Donations closed for this incident")
+
+        serializer.save(donor=user.donor_profile)
+
+
+# ==================================
+# LIST DONATIONS (PUBLIC)
+# ==================================
+class DonationListAPIView(generics.ListAPIView):
+    serializer_class = DonationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = Donation.objects.all().order_by("-created_at")
