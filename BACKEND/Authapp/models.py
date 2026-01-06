@@ -10,7 +10,6 @@ class UserRole(models.TextChoices):
     ADMIN = 'admin', 'Admin'
     RESCUE_TEAM = 'rescue_team', 'Rescue Team'
     ASSESSMENT_TEAM = 'assessment_team', 'Assessment Team'
-    DONOR = 'donor', 'Donor'
 
 
 class User(AbstractBaseUser, PermissionsMixin):
@@ -25,7 +24,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
 
     is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)   # Required for Django admin
+    is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
 
     date_joined = models.DateTimeField(default=timezone.now)
@@ -38,10 +37,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
 
-    @property
-    def is_citizen(self):
-        return self.role == UserRole.CITIZEN
-
+    # ---- Role helpers ----
     @property
     def is_admin_role(self):
         return self.role == UserRole.ADMIN
@@ -53,7 +49,3 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def is_assessment_team(self):
         return self.role == UserRole.ASSESSMENT_TEAM
-
-    @property
-    def is_donor(self):
-        return self.role == UserRole.DONOR

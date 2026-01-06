@@ -5,21 +5,16 @@ from .views import (
     UserMeAPIView,
     UpdateProfileAPIView,
     AdminUserListAPIView,
-    AdminUserDetailAPIView,
-    ProfileAPIView,  # NEW
+    AdminCreateUserAPIView,
 )
 
 urlpatterns = [
-    # Public / Auth endpoints
-    path("register/", RegisterUserAPIView.as_view(), name="register"),
-    path("login/", LoginAPIView.as_view(), name="login"),
+    path("register/", RegisterUserAPIView.as_view()),
+    path("login/", LoginAPIView.as_view()),
+    path("me/", UserMeAPIView.as_view()),
+    path("me/update/", UpdateProfileAPIView.as_view()),
 
-    # Authenticated user endpoints
-    path("me/", UserMeAPIView.as_view(), name="user-me"),
-    path("me/update/", UpdateProfileAPIView.as_view(), name="update-profile"),
-    path("profile/", ProfileAPIView.as_view(), name="profile"),  # NEW: aggregated profile
-
-    # Admin endpoints
-    path("admin/all/", AdminUserListAPIView.as_view(), name="admin-user-list"),
-    path("admin/<int:pk>/", AdminUserDetailAPIView.as_view(), name="admin-user-detail"),
+    # Admin
+    path("admin/create-user/", AdminCreateUserAPIView.as_view()),
+    path("admin/users/", AdminUserListAPIView.as_view()),
 ]
