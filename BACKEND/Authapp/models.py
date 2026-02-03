@@ -49,3 +49,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def is_assessment_team(self):
         return self.role == UserRole.ASSESSMENT_TEAM
+    
+    @property
+    def is_citizen(self):
+        return self.role == UserRole.CITIZEN
