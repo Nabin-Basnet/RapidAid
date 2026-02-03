@@ -60,10 +60,10 @@ const Incidents = () => {
   };
 
   const handleDonate = (id) => {
-    const donorId = localStorage.getItem("donor_id");
-    donorId
-      ? navigate(`/donate?incident=${id}`)
-      : navigate("/donor/register");
+    const hasDonor = localStorage.getItem("has_donor") === "true";
+    hasDonor
+      ? navigate(`/donates?incident=${id}`)
+      : navigate("/doner");
   };
 
   const handleVolunteerApply = (id) => {

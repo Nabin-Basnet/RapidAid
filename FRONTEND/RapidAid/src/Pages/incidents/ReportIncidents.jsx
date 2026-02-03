@@ -7,6 +7,8 @@ export default function ReportIncidentsPage() {
   const [type, setType] = useState("");
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState("");
+  const [severity, setSeverity] = useState("");
+  const [incidentDate, setIncidentDate] = useState("");
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState("");
@@ -22,27 +24,61 @@ export default function ReportIncidentsPage() {
     setSuccess("");
     setError("");
 
-    const formData = new FormData();
-    formData.append("title", title);
-    formData.append("type", type);
-    formData.append("description", description);
-    formData.append("location", location);
-    files.forEach((file) => formData.append("media", file)); // assumes backend has a `media` field
-
     try {
-      const response = await axiosInstance.post("/incidents/reportz", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
+      const response = await axiosInstance.post("/incidents/report/", {
+        title,
+        description,
+        incident_type: type,
+        severity,
+        location,
+        incident_date: incidentDate,
       });
+
+      const incidentId = response.data?.id;
+
+      if (incidentId && files.length > 0) {
+        await Promise.all(
+          files.map((file) => {
+            const mediaData = new FormData();
+            mediaData.append("file", file);
+            mediaData.append(
+              "media_type",
+              file.type.startsWith("video/") ? "video" : "photo"
+            );
+            return axiosInstance.post(
+              `/incidents/media/upload/${incidentId}/`,
+              mediaData,
+              {
+                transformRequest: (data, headers) => {
+                  delete headers["Content-Type"];
+                  delete headers["content-type"];
+                  return data;
+                },
+              }
+            );
+          })
+        );
+      }
 
       setSuccess("Incident reported successfully!");
       setTitle("");
       setType("");
       setDescription("");
       setLocation("");
+      setSeverity("");
+      setIncidentDate("");
       setFiles([]);
       console.log("Response:", response.data);
-    } catch (err) {
-      console.error("Error:", err.response || err);
+       console.log("Upload error data:", err.response?.data);
+      const data = err.response?.data;
+      const message =
+        data?.detail ||
+        data?.file?.[0] ||
+        data?.media_type?.[0] ||
+        data?.non_field_errors?.[0] ||
+        "Something went wrong";
+      setError(message);
+;
       setError(err.response?.data?.detail || "Something went wrong");
     } finally {
       setLoading(false);
@@ -88,6 +124,27 @@ export default function ReportIncidentsPage() {
           rows={5}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          className="w-full border rounded-lg p-2"
+          required
+        />
+
+        <select
+          value={severity}
+          onChange={(e) => setSeverity(e.target.value)}
+          className="w-full border rounded-lg p-2"
+          required
+        >
+          <option value="">Select severity</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="critical">Critical</option>
+        </select>
+
+        <input
+          type="date"
+          value={incidentDate}
+          onChange={(e) => setIncidentDate(e.target.value)}
           className="w-full border rounded-lg p-2"
           required
         />

@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Menu, X, User, LogOut } from "lucide-react";
-import axiosInstance from "../api/Axios"; // adjust path if needed
 
 /* ---------- AUTH HELPERS ---------- */
 const isAuthenticated = () => !!localStorage.getItem("access");
@@ -60,18 +59,11 @@ export default function Navbar() {
       return;
     }
 
-    try {
-      // 2. Check donor existence
-      await axiosInstance.get("/donors/me/");
-      // Donor exists
+    const hasDonor = localStorage.getItem("has_donor") === "true";
+    if (hasDonor) {
       navigate("/donations");
-    } catch (error) {
-      if (error.response?.status === 404) {
-        // Donor does not exist
-        navigate("/doner");
-      } else {
-        console.error("Error checking donor status:", error);
-      }
+    } else {
+      navigate("/doner");
     }
   };
   /* ---------------------------------- */
