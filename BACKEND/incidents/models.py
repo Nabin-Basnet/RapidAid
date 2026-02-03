@@ -106,6 +106,13 @@ class IncidentMedia(models.Model):
         related_name="media"
     )
 
+    uploaded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
     file = models.FileField(upload_to="incidents/media/")
     media_type = models.CharField(
         max_length=10,
