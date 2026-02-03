@@ -30,7 +30,7 @@ export default function ReportIncidentsPage() {
     files.forEach((file) => formData.append("media", file)); // assumes backend has a `media` field
 
     try {
-      const response = await axiosInstance.post("/incidents/incidents/", formData, {
+      const response = await axiosInstance.post("/incidents/reportz", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 

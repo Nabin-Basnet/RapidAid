@@ -24,9 +24,8 @@ const IncidentDetail = () => {
   useEffect(() => {
     const fetchIncident = async () => {
       try {
-        setLoading(true);
         const res = await axios.get(
-          `${API_BASE}/api/incidents/incidents/${id}/`,
+          `${API_BASE}/api/incidents/${id}/`,
           {
             headers: token
               ? { Authorization: `Bearer ${token}` }
@@ -35,14 +34,14 @@ const IncidentDetail = () => {
         );
         setIncident(res.data);
       } catch (err) {
-        setError(err.response?.data?.detail || "Failed to load incident");
+        setError("Failed to load incident");
       } finally {
         setLoading(false);
       }
     };
 
     fetchIncident();
-  }, [id, token]);
+  }, [id]);
 
   /* ---------------- Badge helpers ---------------- */
   const statusColor = (status) => {
@@ -66,47 +65,48 @@ const IncidentDetail = () => {
     return map[severity] || "bg-gray-100 text-gray-800";
   };
 
+  const formatText = (text) =>
+    text?.replace("_", " ").toUpperCase();
+
   /* ---------------- UI States ---------------- */
-  if (loading) {
+  if (loading)
     return (
-      <div className="h-screen flex items-center justify-center text-gray-600 text-lg">
-        Loading incident details…
+      <div className="h-screen flex items-center justify-center">
+        Loading...
       </div>
     );
-  }
 
-  if (error) {
+  if (error)
     return (
-      <div className="h-screen flex items-center justify-center text-red-600 text-lg">
+      <div className="h-screen flex items-center justify-center text-red-600">
         {error}
       </div>
     );
-  }
 
-  if (!incident) {
+  if (!incident)
     return (
-      <div className="h-screen flex items-center justify-center text-gray-600 text-lg">
+      <div className="h-screen flex items-center justify-center">
         Incident not found
       </div>
     );
-  }
 
   /* ---------------- UI ---------------- */
   return (
     <div className="min-h-screen bg-gray-100 py-8 px-4">
-      <div className="max-w-6xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6 my-10">
 
         {/* Back */}
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-blue-600 hover:underline"
         >
-          <ArrowLeft size={18} /> Back to Incidents
+          <ArrowLeft size={18} /> Back
         </button>
 
-        {/* Header Card */}
+        {/* Header */}
         <div className="bg-white rounded-xl shadow p-6">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+          <div className="flex flex-col md:flex-row justify-between gap-4">
+
             <div>
               <h1 className="text-3xl font-bold">
                 {incident.title}
@@ -115,7 +115,7 @@ const IncidentDetail = () => {
               <p className="text-gray-600 mt-1">
                 Reported by{" "}
                 <span className="font-medium">
-                  {incident.reporter_name || "N/A"}
+                  {incident.reporter_name}
                 </span>
               </p>
 
@@ -131,7 +131,7 @@ const IncidentDetail = () => {
                   incident.status
                 )}`}
               >
-                {incident.status_display}
+                {formatText(incident.status)}
               </span>
 
               <span
@@ -139,12 +139,12 @@ const IncidentDetail = () => {
                   incident.severity
                 )}`}
               >
-                {incident.severity_display}
+                {formatText(incident.severity)}
               </span>
             </div>
           </div>
 
-          <p className="mt-5 text-gray-700 leading-relaxed">
+          <p className="mt-5 text-gray-700">
             {incident.description}
           </p>
 
@@ -156,82 +156,85 @@ const IncidentDetail = () => {
           )}
         </div>
 
-        {/* Media Section */}
-        {incident.media?.length > 0 && (
-          <div className="bg-white rounded-xl shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">
-              Incident Media
-            </h2>
-
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {incident.media.map((m) => {
-                const mediaUrl = m.file.startsWith("http")
-                  ? m.file
-                  : `${API_BASE}${m.file}`;
-
-                return (
-                  <div
-                    key={m.id}
-                    className="rounded-lg overflow-hidden border"
-                  >
-                    {m.media_type === "photo" ? (
-                      <img
-                        src={mediaUrl}
-                        alt="Incident"
-                        className="w-full h-56 object-cover"
-                      />
-                    ) : (
-                      <video
-                        src={mediaUrl}
-                        controls
-                        className="w-full h-56 object-cover"
-                      />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Verification Timeline */}
-        {incident.verifications?.length > 0 && (
+        {/* Timeline */}
+        {incident.timeline?.length > 0 && (
           <div className="bg-white rounded-xl shadow p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <ShieldCheck size={20} />
-              Verification History
+              Incident Timeline
             </h2>
 
             <div className="space-y-4">
-              {incident.verifications.map((v) => (
+              {incident.timeline.map((t) => (
                 <div
-                  key={v.id}
+                  key={t.id}
                   className="border-l-4 border-blue-500 pl-4 py-2 bg-gray-50 rounded"
                 >
                   <div className="flex justify-between">
                     <p className="font-medium">
-                      {v.verifier_name || "Unknown"}
+                      {t.title}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {new Date(v.created_at).toLocaleString()}
+                      {new Date(t.created_at).toLocaleString()}
                     </p>
                   </div>
 
                   <p className="text-sm mt-1 flex items-center gap-2">
                     <AlertTriangle size={14} />
-                    {v.status}
+                    {t.description}
                   </p>
 
-                  {v.remarks && (
-                    <p className="text-gray-600 mt-1">
-                      {v.remarks}
-                    </p>
-                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    By: {t.created_by_name}
+                  </p>
                 </div>
               ))}
             </div>
           </div>
         )}
+        {/* Media Section */}
+{incident.media && incident.media.length > 0 && (
+  <div className="bg-white rounded-xl shadow p-6">
+    <h2 className="text-xl font-semibold mb-4">
+      Incident Media
+    </h2>
+
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {incident.media.map((m) => {
+
+        const mediaUrl = m.file.startsWith("http")
+          ? m.file
+          : `${API_BASE}${m.file}`;
+
+        return (
+          <div
+            key={m.id}
+            className="rounded-lg overflow-hidden border"
+          >
+            {m.media_type === "photo" ? (
+              <img
+                src={mediaUrl}
+                alt="Incident"
+                className="w-full h-56 object-cover"
+                onError={(e) => {
+                  e.target.src =
+                    "https://via.placeholder.com/400x300?text=Image+Not+Found";
+                }}
+              />
+            ) : (
+              <video
+                src={mediaUrl}
+                controls
+                className="w-full h-56 object-cover"
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+
 
       </div>
     </div>
