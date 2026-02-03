@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Mail, Phone, AlertCircle, Users, DollarSign, LogOut } from "lucide-react";
-import axios from "axios";
+import { User, Mail, Phone, AlertCircle, Users, DollarSign, LogOut, MapPin, Calendar, Shield } from "lucide-react";
+import axiosInstance from "../api/Axios";
 
 export default function Profile() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [localUser, setLocalUser] = useState(null);
 
   const logout = () => {
     localStorage.removeItem("access");
@@ -19,21 +21,28 @@ export default function Profile() {
     const fetchProfile = async () => {
       try {
         const token = localStorage.getItem("access");
+        const stored = localStorage.getItem("user");
+        setLocalUser(stored ? JSON.parse(stored) : null);
         if (!token) {
           navigate("/login");
           return;
         }
 
-        const res = await axios.get("http://localhost:8000/api/auth/profile/", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const res = await axiosInstance.get("auth/me/");
 
-        setProfile(res.data);
+        setProfile({ user: res.data });
       } catch (err) {
         console.error(err);
-        navigate("/login");
+        const status = err?.response?.status;
+        if (status === 401 || status === 403) {
+          navigate("/login");
+          return;
+        }
+        if (!profile) {
+          const stored = localStorage.getItem("user");
+          setProfile({ user: stored ? JSON.parse(stored) : {} });
+        }
+        setError("Could not load profile details. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -43,51 +52,236 @@ export default function Profile() {
   }, [navigate]);
 
   if (loading) return <p className="pt-24 text-center">Loading...</p>;
-  if (!profile) return null;
+  if (!profile && !error) return null;
 
-  const { user, incident_activity, rescue_activity, donation_activity, recent_incidents, recent_donations } = profile;
+  const {
+    user = {},
+    incident_activity = {},
+    rescue_activity = {},
+    donation_activity = {},
+    recent_incidents = [],
+    recent_donations = [],
+  } = profile ?? {};
+
+  const mergedUser = { ...(localUser || {}), ...user };
+  const displayName = mergedUser.full_name || mergedUser.name || mergedUser.username || "User";
+  const roleLabel = mergedUser.role_display || mergedUser.role || "Member";
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+
+  const formatINR = (amount) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(Number(amount ?? 0));
+
+  const hasActivity =
+    (incident_activity.total_reported ?? 0) > 0 ||
+    (rescue_activity.total_assignments ?? 0) > 0 ||
+    Number(donation_activity.total_money_donated ?? 0) > 0 ||
+    recent_incidents.length > 0 ||
+    recent_donations.length > 0;
+
+  const secondaryStats = [
+    {
+      label: "Total Donations",
+      value:
+        donation_activity.total_money_donated || donation_activity.total_money_donated === 0
+          ? formatINR(donation_activity.total_money_donated)
+          : "Not available",
+    },
+    {
+      label: "Reported Incidents",
+      value:
+        incident_activity.total_reported || incident_activity.total_reported === 0
+          ? incident_activity.total_reported
+          : "Not available",
+    },
+    {
+      label: "Volunteer Contributions",
+      value:
+        rescue_activity.total_assignments || rescue_activity.total_assignments === 0
+          ? rescue_activity.total_assignments
+          : "Not available",
+    },
+  ];
+
+  const detailItems = [
+    { label: "User ID", value: mergedUser.id },
+    { label: "Email", value: mergedUser.email },
+    { label: "Phone", value: mergedUser.phone },
+    { label: "Role", value: roleLabel },
+    {
+      label: "Joined",
+      value: mergedUser.date_joined
+        ? new Date(mergedUser.date_joined).toLocaleDateString()
+        : null,
+      icon: Calendar,
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 pt-24 flex flex-col items-center">
-      <div className="w-full max-w-3xl bg-white rounded-3xl shadow-xl p-8">
-        
-        {/* Avatar & Basic Info */}
-        <div className="flex flex-col items-center text-center">
-          <div className="w-24 h-24 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shadow">
-            <User size={42} />
+      <div className="w-full max-w-4xl bg-white rounded-3xl shadow-xl p-8">
+        {error && (
+          <div className="mb-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
           </div>
-          <h2 className="mt-4 text-xl font-bold text-gray-800">{user.full_name}</h2>
-          <p className="text-sm text-gray-500">{user.role_display}</p>
+        )}
+
+        {/* Header */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500 p-8 text-white">
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <div className="w-24 h-24 rounded-2xl bg-white/20 text-white flex items-center justify-center text-2xl font-bold shadow">
+              {initials || <User size={36} />}
+            </div>
+            <div className="text-center md:text-left">
+              <h2 className="text-2xl md:text-3xl font-bold">{displayName}</h2>
+              <p className="text-white/90 mt-1 flex items-center justify-center md:justify-start gap-2 text-sm">
+                <Shield size={16} /> {roleLabel}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2 justify-center md:justify-start">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs">
+                  <Mail size={14} /> {mergedUser.email || "Email not provided"}
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs">
+                  <Phone size={14} /> {mergedUser.phone || "Phone not provided"}
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Contact Info */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
-            <Mail className="text-blue-600" size={18} />
-            <span className="text-sm text-gray-700">{user.email || "Not provided"}</span>
+        {/* Details */}
+        <div className="mt-8">
+          <div className="flex items-center gap-2 text-gray-700">
+            <MapPin size={18} className="text-blue-600" />
+            <h3 className="font-semibold">Account Details</h3>
           </div>
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50">
-            <Phone className="text-blue-600" size={18} />
-            <span className="text-sm text-gray-700">{user.phone || "Not provided"}</span>
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {detailItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={item.label}
+                  className="flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3"
+                >
+                  <div className="flex items-center gap-3 text-gray-600">
+                    {Icon ? <Icon size={16} className="text-blue-600" /> : null}
+                    <span className="text-sm">{item.label}</span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-800">
+                    {item.value || "Not provided"}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="flex flex-col items-center p-4 bg-gray-50 rounded-xl shadow">
-            <AlertCircle className="text-red-500" size={24} />
-            <span className="mt-2 font-bold text-lg">{incident_activity.total_reported}</span>
-            <span className="text-sm text-gray-500">Incidents Reported</span>
+        {/* Activity */}
+        <div className="mt-8">
+          <div className="flex items-center gap-2 text-gray-700">
+            <AlertCircle size={18} className="text-red-500" />
+            <h3 className="font-semibold">Activity Snapshot</h3>
           </div>
-          <div className="flex flex-col items-center p-4 bg-gray-50 rounded-xl shadow">
-            <Users className="text-green-500" size={24} />
-            <span className="mt-2 font-bold text-lg">{rescue_activity.total_assignments}</span>
-            <span className="text-sm text-gray-500">Rescue Assignments</span>
+          {hasActivity ? (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex flex-col items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                <AlertCircle className="text-red-500" size={24} />
+                <span className="mt-2 font-bold text-lg">{incident_activity.total_reported ?? 0}</span>
+                <span className="text-sm text-gray-500">Incidents Reported</span>
+              </div>
+              <div className="flex flex-col items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                <Users className="text-green-500" size={24} />
+                <span className="mt-2 font-bold text-lg">{rescue_activity.total_assignments ?? 0}</span>
+                <span className="text-sm text-gray-500">Rescue Assignments</span>
+              </div>
+              <div className="flex flex-col items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                <DollarSign className="text-yellow-500" size={24} />
+                <span className="mt-2 font-bold text-lg">
+                  {formatINR(donation_activity.total_money_donated)}
+                </span>
+                <span className="text-sm text-gray-500">Total Donations</span>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-gray-500">
+              No activity data available yet. Once you report incidents or donate, your activity will appear here.
+            </p>
+          )}
+        </div>
+
+        {/* Contribution Details */}
+        <div className="mt-8">
+          <div className="flex items-center gap-2 text-gray-700">
+            <Users size={18} className="text-green-600" />
+            <h3 className="font-semibold">Contribution Details</h3>
           </div>
-          <div className="flex flex-col items-center p-4 bg-gray-50 rounded-xl shadow">
-            <DollarSign className="text-yellow-500" size={24} />
-            <span className="mt-2 font-bold text-lg">{donation_activity.total_money_donated}</span>
-            <span className="text-sm text-gray-500">Total Donations</span>
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            {secondaryStats.map((stat) => (
+              <div
+                key={stat.label}
+                className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
+              >
+                <p className="text-xs uppercase tracking-wide text-gray-400">{stat.label}</p>
+                <p className="mt-2 text-lg font-semibold text-gray-800">{stat.value}</p>
+                {stat.value === "Not available" ? (
+                  <p className="mt-2 text-xs text-gray-400">
+                    Not available without backend data.
+                  </p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Incidents Summary */}
+        <div className="mt-8">
+          <div className="flex items-center gap-2 text-gray-700">
+            <AlertCircle size={18} className="text-red-500" />
+            <h3 className="font-semibold">Reported Incidents</h3>
+          </div>
+          {recent_incidents.length > 0 ? (
+            <div className="mt-4 space-y-3">
+              {recent_incidents.map((inc) => (
+                <div
+                  key={inc.id}
+                  className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3"
+                >
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-gray-800">{inc.title}</p>
+                      <p className="text-xs text-gray-500">{inc.incident_type || "Incident"}</p>
+                    </div>
+                    <span className="text-xs font-medium rounded-full bg-white px-3 py-1 text-gray-600 shadow-sm">
+                      {inc.status || "Status not available"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-4 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+              No incident details available from the frontend data source.
+            </div>
+          )}
+        </div>
+
+        {/* Volunteer Summary */}
+        <div className="mt-8">
+          <div className="flex items-center gap-2 text-gray-700">
+            <Users size={18} className="text-green-600" />
+            <h3 className="font-semibold">Volunteer Contributions</h3>
+          </div>
+          <div className="mt-4 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-500">
+            Volunteer assignments are not available from the current frontend data source.
           </div>
         </div>
 
@@ -113,10 +307,19 @@ export default function Profile() {
           <h3 className="font-semibold text-gray-700 mb-2">Recent Donations</h3>
           {recent_donations.length > 0 ? (
             <ul className="space-y-2">
-              {recent_donations.map((don, idx) => (
-                <li key={idx} className="p-3 bg-gray-50 rounded-xl shadow flex justify-between">
-                  <span>{don.donation_type === "money" ? `₹ ${don.amount}` : don.item_description}</span>
-                  <span className="text-sm text-gray-500">{new Date(don.created_at).toLocaleDateString()}</span>
+              {recent_donations.map((don) => (
+                <li
+                  key={don.id ?? `${don.donation_type}-${don.created_at}`}
+                  className="p-3 bg-gray-50 rounded-xl shadow flex justify-between"
+                >
+                  <span>
+                    {don.donation_type === "money"
+                      ? formatINR(don.amount)
+                      : don.item_description || "Item donation"}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    {don.created_at ? new Date(don.created_at).toLocaleDateString() : "-"}
+                  </span>
                 </li>
               ))}
             </ul>
