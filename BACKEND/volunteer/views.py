@@ -11,6 +11,7 @@ from .serializers import (
 from Authapp.permissions import IsAdminRole
 from incidents.models import IncidentStatus
 from rescue.models import RescueTeam, RescueTeamMember, RescueAssignment
+from RapidAid.email_utils import send_notification_email
 
 
 # =========================================
@@ -63,6 +64,7 @@ class AdminUpdateVolunteerAPIView(generics.UpdateAPIView):
     def perform_update(self, serializer):
         with transaction.atomic():
             assignment = self.get_object()
+            previous_status = assignment.status
             status = serializer.validated_data.get("status")
 
             if status == VolunteerStatus.APPROVED:
@@ -90,6 +92,32 @@ class AdminUpdateVolunteerAPIView(generics.UpdateAPIView):
                     user=updated_assignment.user,
                     defaults={"role": "Volunteer"},
                 )
+
+                if previous_status != VolunteerStatus.APPROVED:
+                    send_notification_email(
+                        to_email=updated_assignment.user.email,
+                        subject="RapidAid: Volunteer Application Approved",
+                        message=(
+                            f"Hello {updated_assignment.user.full_name},\n\n"
+                            f"Your volunteer application for incident '{incident.title}' has been approved.\n"
+                            "Thank you for stepping up to help your community.\n\n"
+                            "Regards,\nRapidAid Team"
+                        ),
+                    )
+            elif status == VolunteerStatus.REJECTED:
+                updated_assignment = serializer.save()
+                if previous_status != VolunteerStatus.REJECTED:
+                    send_notification_email(
+                        to_email=updated_assignment.user.email,
+                        subject="RapidAid: Volunteer Application Update",
+                        message=(
+                            f"Hello {updated_assignment.user.full_name},\n\n"
+                            f"Your volunteer application for incident '{updated_assignment.incident.title}' "
+                            "was not approved at this time.\n"
+                            "You can still support the platform by applying to future verified incidents.\n\n"
+                            "Regards,\nRapidAid Team"
+                        ),
+                    )
             elif status == VolunteerStatus.COMPLETED:
                 serializer.save(completed_at=timezone.now())
             else:

@@ -9,6 +9,7 @@ from .models import (
     IncidentStatus
 )
 from volunteer.models import VolunteerStatus
+from RapidAid.email_utils import send_notification_email
 
 User = settings.AUTH_USER_MODEL
 
@@ -185,6 +186,7 @@ class IncidentAdminUpdateSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         request = self.context["request"]
         new_status = validated_data["status"]
+        previous_status = instance.status
 
         instance.status = new_status
 
@@ -202,5 +204,21 @@ class IncidentAdminUpdateSerializer(serializers.ModelSerializer):
             description=f"Status updated to {new_status}",
             created_by=request.user
         )
+
+        if (
+            previous_status != IncidentStatus.VERIFIED
+            and new_status == IncidentStatus.VERIFIED
+            and instance.reporter_id
+        ):
+            send_notification_email(
+                to_email=instance.reporter.email,
+                subject="RapidAid: Incident Approved",
+                message=(
+                    f"Hello {instance.reporter.full_name},\n\n"
+                    f"Your incident '{instance.title}' has been approved and marked as verified.\n"
+                    "You can now open RapidAid to track updates and community support.\n\n"
+                    "Thank you,\nRapidAid Team"
+                ),
+            )
 
         return instance
