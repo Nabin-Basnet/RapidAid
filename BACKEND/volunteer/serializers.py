@@ -16,7 +16,9 @@ class VolunteerAssignmentSerializer(serializers.ModelSerializer):
         model = VolunteerAssignment
         fields = "__all__"
         read_only_fields = [
+            "user",
             "status",
+            "applied_at",
             "approved_at",
             "completed_at",
         ]
