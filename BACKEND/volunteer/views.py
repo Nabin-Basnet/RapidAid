@@ -1,11 +1,16 @@
 from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied
 from django.utils import timezone
+from django.db import transaction
 
 from .models import VolunteerAssignment, VolunteerStatus
-from .serializers import VolunteerAssignmentSerializer
+from .serializers import (
+    VolunteerAssignmentSerializer,
+    AdminVolunteerUpdateSerializer,
+)
 from Authapp.permissions import IsAdminRole
 from incidents.models import IncidentStatus
+from rescue.models import RescueTeam, RescueTeamMember, RescueAssignment
 
 
 # =========================================
@@ -46,19 +51,49 @@ class ApplyVolunteerAPIView(generics.CreateAPIView):
 # ADMIN: APPROVE / REJECT VOLUNTEER
 # =========================================
 class AdminUpdateVolunteerAPIView(generics.UpdateAPIView):
-    serializer_class = VolunteerAssignmentSerializer
+    serializer_class = AdminVolunteerUpdateSerializer
     permission_classes = [IsAdminRole]
     queryset = VolunteerAssignment.objects.all()
 
-    def perform_update(self, serializer):
-        status = self.request.data.get("status")
+    def get_serializer_class(self):
+        if self.request.method in ["PUT", "PATCH"]:
+            return AdminVolunteerUpdateSerializer
+        return VolunteerAssignmentSerializer
 
-        if status == VolunteerStatus.APPROVED:
-            serializer.save(approved_at=timezone.now())
-        elif status == VolunteerStatus.COMPLETED:
-            serializer.save(completed_at=timezone.now())
-        else:
-            serializer.save()
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            assignment = self.get_object()
+            status = serializer.validated_data.get("status")
+
+            if status == VolunteerStatus.APPROVED:
+                updated_assignment = serializer.save(approved_at=timezone.now())
+                incident = updated_assignment.incident
+
+                team, _ = RescueTeam.objects.get_or_create(
+                    name=f"Volunteer Team - Incident {incident.id}",
+                    defaults={
+                        "organization": "RapidAid Volunteer Network",
+                    },
+                )
+
+                RescueAssignment.objects.get_or_create(
+                    incident=incident,
+                    team=team,
+                    defaults={
+                        "status": "assigned",
+                        "notes": "Auto-created from approved volunteer applications.",
+                    },
+                )
+
+                RescueTeamMember.objects.get_or_create(
+                    team=team,
+                    user=updated_assignment.user,
+                    defaults={"role": "Volunteer"},
+                )
+            elif status == VolunteerStatus.COMPLETED:
+                serializer.save(completed_at=timezone.now())
+            else:
+                serializer.save()
 
 
 # =========================================

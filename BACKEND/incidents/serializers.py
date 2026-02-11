@@ -8,6 +8,7 @@ from .models import (
     IncidentTimeline,
     IncidentStatus
 )
+from volunteer.models import VolunteerStatus
 
 User = settings.AUTH_USER_MODEL
 
@@ -110,6 +111,24 @@ class IncidentPublicSerializer(serializers.ModelSerializer):
         source="reporter.email",
         read_only=True
     )
+    approved_volunteers = serializers.SerializerMethodField()
+
+    def get_approved_volunteers(self, obj):
+        approved = obj.volunteers.filter(
+            status=VolunteerStatus.APPROVED
+        ).select_related("user").order_by("-approved_at")
+
+        return [
+            {
+                "id": assignment.id,
+                "user_id": assignment.user_id,
+                "user_name": assignment.user.full_name,
+                "user_email": assignment.user.email,
+                "remarks": assignment.remarks,
+                "approved_at": assignment.approved_at,
+            }
+            for assignment in approved
+        ]
 
     class Meta:
         model = Incident
@@ -123,6 +142,7 @@ class IncidentPublicSerializer(serializers.ModelSerializer):
             "incident_date",
             "status",
             "reporter_name",
+            "approved_volunteers",
             "media",
             "timeline",
             "created_at",

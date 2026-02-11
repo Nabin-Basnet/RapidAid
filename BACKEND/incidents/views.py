@@ -61,6 +61,12 @@ class IncidentListAPIView(generics.ListAPIView):
     def get_queryset(self):
         return Incident.objects.exclude(
             status=IncidentStatus.REJECTED
+        ).select_related(
+            "reporter"
+        ).prefetch_related(
+            "media",
+            "timeline",
+            "volunteers__user",
         ).order_by("-created_at")
 
 
@@ -71,7 +77,13 @@ class IncidentListAPIView(generics.ListAPIView):
 class IncidentDetailAPIView(generics.RetrieveAPIView):
     serializer_class = IncidentPublicSerializer
     permission_classes = [permissions.IsAuthenticated]
-    queryset = Incident.objects.all()
+    queryset = Incident.objects.select_related(
+        "reporter"
+    ).prefetch_related(
+        "media",
+        "timeline",
+        "volunteers__user",
+    )
 
 
 # ======================================================

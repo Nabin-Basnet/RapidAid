@@ -22,3 +22,9 @@ class VolunteerAssignmentSerializer(serializers.ModelSerializer):
             "approved_at",
             "completed_at",
         ]
+
+
+class AdminVolunteerUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VolunteerAssignment
+        fields = ["status"]
