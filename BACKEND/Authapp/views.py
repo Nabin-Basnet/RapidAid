@@ -3,6 +3,12 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
+from django.db.models import Sum
+
+from incidents.models import Incident
+from donations.models import Donation
+from volunteer.models import VolunteerAssignment
+from rescue.models import RescueTeamMember, RescueAssignment
 
 from .models import UserRole
 from .serializers import UserDetailSerializer
@@ -106,6 +112,77 @@ class UserMeAPIView(generics.RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+# ============================================================
+# CURRENT USER PROFILE SUMMARY
+# ============================================================
+class UserProfileSummaryAPIView(generics.GenericAPIView):
+    """
+    Get logged-in user's profile summary with activity data.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        incident_qs = Incident.objects.filter(reporter=user).order_by("-created_at")
+        donation_qs = Donation.objects.filter(donor__user=user).order_by("-created_at")
+        volunteer_qs = VolunteerAssignment.objects.filter(user=user).order_by("-applied_at")
+
+        team_ids = RescueTeamMember.objects.filter(user=user).values_list("team_id", flat=True)
+        rescue_assignments_qs = RescueAssignment.objects.filter(team_id__in=team_ids)
+
+        total_money = donation_qs.filter(donation_type="money").aggregate(total=Sum("amount"))["total"]
+
+        recent_incidents = list(
+            incident_qs.values("id", "title", "incident_type", "status", "created_at")[:5]
+        )
+
+        recent_donations = [
+            {
+                "id": donation.id,
+                "donation_type": donation.donation_type,
+                "amount": donation.amount,
+                "item_name": donation.item_name,
+                "quantity": donation.quantity,
+                "created_at": donation.created_at,
+                "incident_title": donation.incident.title if donation.incident else None,
+            }
+            for donation in donation_qs.select_related("incident")[:5]
+        ]
+
+        recent_volunteer = [
+            {
+                "id": assignment.id,
+                "status": assignment.status,
+                "applied_at": assignment.applied_at,
+                "incident_title": assignment.incident.title if assignment.incident else None,
+            }
+            for assignment in volunteer_qs.select_related("incident")[:5]
+        ]
+
+        data = {
+            "user": UserDetailSerializer(user).data,
+            "incident_activity": {
+                "total_reported": incident_qs.count(),
+            },
+            "donation_activity": {
+                "total_money_donated": float(total_money or 0),
+                "total_donations": donation_qs.count(),
+            },
+            "rescue_activity": {
+                "total_assignments": rescue_assignments_qs.count(),
+            },
+            "volunteer_activity": {
+                "total_assignments": volunteer_qs.count(),
+            },
+            "recent_incidents": recent_incidents,
+            "recent_donations": recent_donations,
+            "recent_volunteer": recent_volunteer,
+        }
+
+        return Response(data)
 
 
 # ============================================================
