@@ -28,9 +28,9 @@ export default function Profile() {
           return;
         }
 
-        const res = await axiosInstance.get("auth/me/");
+        const res = await axiosInstance.get("auth/profile/");
 
-        setProfile({ user: res.data });
+        setProfile(res.data);
       } catch (err) {
         console.error(err);
         const status = err?.response?.status;
@@ -59,8 +59,10 @@ export default function Profile() {
     incident_activity = {},
     rescue_activity = {},
     donation_activity = {},
+    volunteer_activity = {},
     recent_incidents = [],
     recent_donations = [],
+    recent_volunteer = [],
   } = profile ?? {};
 
   const mergedUser = { ...(localUser || {}), ...user };
@@ -81,12 +83,22 @@ export default function Profile() {
       maximumFractionDigits: 0,
     }).format(Number(amount ?? 0));
 
+  const formatStatus = (value) => {
+    if (!value) return "Status not available";
+    return value
+      .toString()
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
   const hasActivity =
     (incident_activity.total_reported ?? 0) > 0 ||
     (rescue_activity.total_assignments ?? 0) > 0 ||
     Number(donation_activity.total_money_donated ?? 0) > 0 ||
+    (volunteer_activity.total_assignments ?? 0) > 0 ||
     recent_incidents.length > 0 ||
-    recent_donations.length > 0;
+    recent_donations.length > 0 ||
+    recent_volunteer.length > 0;
 
   const secondaryStats = [
     {
@@ -94,6 +106,13 @@ export default function Profile() {
       value:
         donation_activity.total_money_donated || donation_activity.total_money_donated === 0
           ? formatINR(donation_activity.total_money_donated)
+          : "Not available",
+    },
+    {
+      label: "Donation Count",
+      value:
+        donation_activity.total_donations || donation_activity.total_donations === 0
+          ? donation_activity.total_donations
           : "Not available",
     },
     {
@@ -105,6 +124,13 @@ export default function Profile() {
     },
     {
       label: "Volunteer Contributions",
+      value:
+        volunteer_activity.total_assignments || volunteer_activity.total_assignments === 0
+          ? volunteer_activity.total_assignments
+          : "Not available",
+    },
+    {
+      label: "Rescue Assignments",
       value:
         rescue_activity.total_assignments || rescue_activity.total_assignments === 0
           ? rescue_activity.total_assignments
@@ -192,7 +218,7 @@ export default function Profile() {
             <h3 className="font-semibold">Activity Snapshot</h3>
           </div>
           {hasActivity ? (
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="flex flex-col items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
                 <AlertCircle className="text-red-500" size={24} />
                 <span className="mt-2 font-bold text-lg">{incident_activity.total_reported ?? 0}</span>
@@ -210,6 +236,13 @@ export default function Profile() {
                 </span>
                 <span className="text-sm text-gray-500">Total Donations</span>
               </div>
+              <div className="flex flex-col items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                <Users className="text-emerald-500" size={24} />
+                <span className="mt-2 font-bold text-lg">
+                  {volunteer_activity.total_assignments ?? 0}
+                </span>
+                <span className="text-sm text-gray-500">Volunteer Assignments</span>
+              </div>
             </div>
           ) : (
             <p className="mt-3 text-sm text-gray-500">
@@ -224,7 +257,7 @@ export default function Profile() {
             <Users size={18} className="text-green-600" />
             <h3 className="font-semibold">Contribution Details</h3>
           </div>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {secondaryStats.map((stat) => (
               <div
                 key={stat.label}
@@ -234,7 +267,7 @@ export default function Profile() {
                 <p className="mt-2 text-lg font-semibold text-gray-800">{stat.value}</p>
                 {stat.value === "Not available" ? (
                   <p className="mt-2 text-xs text-gray-400">
-                    Not available without backend data.
+                    Not available.
                   </p>
                 ) : null}
               </div>
@@ -261,7 +294,7 @@ export default function Profile() {
                       <p className="text-xs text-gray-500">{inc.incident_type || "Incident"}</p>
                     </div>
                     <span className="text-xs font-medium rounded-full bg-white px-3 py-1 text-gray-600 shadow-sm">
-                      {inc.status || "Status not available"}
+                      {formatStatus(inc.status)}
                     </span>
                   </div>
                 </div>
@@ -269,36 +302,8 @@ export default function Profile() {
             </div>
           ) : (
             <div className="mt-4 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-              No incident details available from the frontend data source.
+              No incident details available yet.
             </div>
-          )}
-        </div>
-
-        {/* Volunteer Summary */}
-        <div className="mt-8">
-          <div className="flex items-center gap-2 text-gray-700">
-            <Users size={18} className="text-green-600" />
-            <h3 className="font-semibold">Volunteer Contributions</h3>
-          </div>
-          <div className="mt-4 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-500">
-            Volunteer assignments are not available from the current frontend data source.
-          </div>
-        </div>
-
-        {/* Recent Incidents */}
-        <div className="mt-8">
-          <h3 className="font-semibold text-gray-700 mb-2">Recent Incidents</h3>
-          {recent_incidents.length > 0 ? (
-            <ul className="space-y-2">
-              {recent_incidents.map((inc) => (
-                <li key={inc.id} className="p-3 bg-gray-50 rounded-xl shadow flex justify-between">
-                  <span>{inc.title}</span>
-                  <span className="text-sm text-gray-500">{inc.incident_type}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-400">No recent incidents</p>
           )}
         </div>
 
@@ -315,16 +320,33 @@ export default function Profile() {
                   <span>
                     {don.donation_type === "money"
                       ? formatINR(don.amount)
-                      : don.item_description || "Item donation"}
+                      : `${don.item_name || "Item"}${don.quantity ? ` x${don.quantity}` : ""}`}
                   </span>
                   <span className="text-sm text-gray-500">
-                    {don.created_at ? new Date(don.created_at).toLocaleDateString() : "-"}
+                    {don.incident_title || "General donation"}
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
             <p className="text-gray-400">No recent donations</p>
+          )}
+        </div>
+
+        {/* Recent Volunteer Assignments */}
+        <div className="mt-6">
+          <h3 className="font-semibold text-gray-700 mb-2">Volunteer Contributions</h3>
+          {recent_volunteer.length > 0 ? (
+            <ul className="space-y-2">
+              {recent_volunteer.map((vol) => (
+                <li key={vol.id} className="p-3 bg-gray-50 rounded-xl shadow flex justify-between">
+                  <span>{vol.incident_title || "Incident"}</span>
+                  <span className="text-sm text-gray-500">{formatStatus(vol.status)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-400">No volunteer contributions</p>
           )}
         </div>
 

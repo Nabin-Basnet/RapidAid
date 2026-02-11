@@ -34,7 +34,17 @@ const DonationForm = () => {
           : Array.isArray(res.data)
             ? res.data
             : [];
-        setIncidents(data);
+        const verifiedIncidents = data.filter((item) => {
+          const status = String(item?.status || "").toLowerCase();
+          return item?.is_verified === true || status === "verified";
+        });
+        setIncidents(verifiedIncidents);
+        const verifiedIdSet = new Set(
+          verifiedIncidents.map((item) => String(item.id))
+        );
+        setIncidentId((prev) =>
+          prev && verifiedIdSet.has(String(prev)) ? prev : ""
+        );
       } catch (err) {
         console.error(err);
       }

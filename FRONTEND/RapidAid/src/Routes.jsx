@@ -10,6 +10,7 @@ import DonationPage from "./Pages/donations/donationPage";
 import ReportIncident from "./Pages/incidents/ReportIncidents";
 import DonationForm from "./Pages/donations/DonationForm";
 import DonerRegister from "./Pages/donations/DonerRegister";
+import VolunteerForm from "./Pages/volunteer/VolunteerForm";
 // import DonationPage from "./Pages/donations/DonationPage";
 
 const router = createBrowserRouter([
@@ -36,6 +37,10 @@ const router = createBrowserRouter([
       {
         path:"/report",
         element:<ReportIncident/>
+      },
+      {
+        path: "/volunteer/apply/:id",
+        element: <VolunteerForm />,
       },
       {
         path: "profile",
