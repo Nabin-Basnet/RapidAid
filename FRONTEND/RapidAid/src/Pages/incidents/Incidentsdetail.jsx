@@ -192,6 +192,51 @@ const IncidentDetail = () => {
             </div>
           </div>
         )}
+
+        {/* Approved Volunteers */}
+        <div className="bg-white rounded-xl shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">
+            Approved Volunteers
+          </h2>
+
+          {incident.approved_volunteers?.length > 0 ? (
+            <div className="space-y-3">
+              {incident.approved_volunteers.map((volunteer) => (
+                <div
+                  key={volunteer.id}
+                  className="border rounded-lg p-4 bg-gray-50"
+                >
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {volunteer.user_name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {volunteer.user_email}
+                      </p>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Approved:{" "}
+                      {volunteer.approved_at
+                        ? new Date(volunteer.approved_at).toLocaleString()
+                        : "N/A"}
+                    </p>
+                  </div>
+
+                  {volunteer.remarks ? (
+                    <p className="text-sm text-gray-700 mt-2">
+                      Remarks: {volunteer.remarks}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500">
+              No approved volunteers yet.
+            </p>
+          )}
+        </div>
         {/* Media Section */}
 {incident.media && incident.media.length > 0 && (
   <div className="bg-white rounded-xl shadow p-6">
