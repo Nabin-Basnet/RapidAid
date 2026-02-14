@@ -27,6 +27,7 @@ export default function Navbar() {
 
   const loggedIn = isAuthenticated();
   const user = getUser();
+  const isAdmin = user?.role === "admin";
 
   const navItems = [
     { name: "Home", path: "/" },
@@ -144,6 +145,16 @@ export default function Navbar() {
                     <User size={16} /> My Profile
                   </Link>
 
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      <User size={16} /> Admin Dashboard
+                    </Link>
+                  )}
+
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50"
@@ -208,6 +219,16 @@ export default function Navbar() {
                 >
                   My Profile
                 </Link>
+
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setOpen(false)}
+                    className="block text-center py-2 mb-2 border border-gray-800 text-gray-800 rounded-xl font-semibold"
+                  >
+                    Admin Dashboard
+                  </Link>
+                )}
 
                 <button
                   onClick={handleLogout}

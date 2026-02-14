@@ -11,6 +11,13 @@ import ReportIncident from "./Pages/incidents/ReportIncidents";
 import DonationForm from "./Pages/donations/DonationForm";
 import DonerRegister from "./Pages/donations/DonerRegister";
 import VolunteerForm from "./Pages/volunteer/VolunteerForm";
+import Transparency from "./Pages/Transparency";
+import AdminLayout from "./Layouts/AdminLayout";
+import AdminLanding from "./Pages/Admin/AdminLanding";
+import AdminIncidents from "./Pages/Admin/AdminIncidents";
+import AdminVolunteers from "./Pages/Admin/AdminVolunteers";
+import AdminDonations from "./Pages/Admin/AdminDonations";
+import AdminUsers from "./Pages/Admin/AdminUsers";
 // import DonationPage from "./Pages/donations/DonationPage";
 
 const router = createBrowserRouter([
@@ -37,6 +44,10 @@ const router = createBrowserRouter([
       {
         path:"/report",
         element:<ReportIncident/>
+      },
+      {
+        path: "/transparency",
+        element: <Transparency />,
       },
       {
         path: "/volunteer/apply/:id",
@@ -68,6 +79,32 @@ const router = createBrowserRouter([
   {
     path: "/register",
     element: <Register />,
+  },
+  {
+    path: "/admin",
+    element: <AdminLayout />,
+    children: [
+      {
+        index: true,
+        element: <AdminLanding />,
+      },
+      {
+        path: "incidents",
+        element: <AdminIncidents />,
+      },
+      {
+        path: "volunteers",
+        element: <AdminVolunteers />,
+      },
+      {
+        path: "donations",
+        element: <AdminDonations />,
+      },
+      {
+        path: "users",
+        element: <AdminUsers />,
+      },
+    ],
   },
 ]);
 
