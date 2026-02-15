@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { User, Mail, Phone, AlertCircle, Users, DollarSign, LogOut, MapPin, Calendar, Shield } from "lucide-react";
 import axiosInstance from "../api/Axios";
+import { logoutUser } from "../Auth/utils";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -10,10 +11,8 @@ export default function Profile() {
   const [error, setError] = useState("");
   const [localUser, setLocalUser] = useState(null);
 
-  const logout = () => {
-    localStorage.removeItem("access");
-    localStorage.removeItem("refresh");
-    localStorage.removeItem("user");
+  const logout = async () => {
+    await logoutUser();
     navigate("/login");
   };
 
@@ -186,9 +185,17 @@ export default function Profile() {
 
         {/* Details */}
         <div className="mt-8">
-          <div className="flex items-center gap-2 text-gray-700">
+          <div className="flex items-center justify-between gap-2 text-gray-700">
+            <div className="flex items-center gap-2">
             <MapPin size={18} className="text-blue-600" />
             <h3 className="font-semibold">Account Details</h3>
+            </div>
+            <Link
+              to="/profile/edit"
+              className="text-xs font-semibold text-blue-600 hover:underline"
+            >
+              Edit Profile
+            </Link>
           </div>
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             {detailItems.map((item) => {

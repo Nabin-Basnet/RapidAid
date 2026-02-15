@@ -1,21 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Menu, X, User, LogOut } from "lucide-react";
-
-/* ---------- AUTH HELPERS ---------- */
-const isAuthenticated = () => !!localStorage.getItem("access");
-
-const getUser = () => {
-  const user = localStorage.getItem("user");
-  return user ? JSON.parse(user) : null;
-};
-
-const logout = () => {
-  localStorage.removeItem("access");
-  localStorage.removeItem("refresh");
-  localStorage.removeItem("user");
-};
-/* ---------------------------------- */
+import { getUser, isAuthenticated, logoutUser } from "../Auth/utils";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -46,8 +32,8 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logoutUser();
     setProfileOpen(false);
     navigate("/");
   };
@@ -155,6 +141,26 @@ export default function Navbar() {
                     </Link>
                   )}
 
+                  {user?.role === "rescue_team" && (
+                    <Link
+                      to="/rescue"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      <User size={16} /> Rescue Hub
+                    </Link>
+                  )}
+
+                  {user?.role === "assessment_team" && (
+                    <Link
+                      to="/assessments"
+                      onClick={() => setProfileOpen(false)}
+                      className="flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      <User size={16} /> Assessment Hub
+                    </Link>
+                  )}
+
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50"
@@ -227,6 +233,26 @@ export default function Navbar() {
                     className="block text-center py-2 mb-2 border border-gray-800 text-gray-800 rounded-xl font-semibold"
                   >
                     Admin Dashboard
+                  </Link>
+                )}
+
+                {user?.role === "rescue_team" && (
+                  <Link
+                    to="/rescue"
+                    onClick={() => setOpen(false)}
+                    className="block text-center py-2 mb-2 border border-indigo-600 text-indigo-600 rounded-xl font-semibold"
+                  >
+                    Rescue Hub
+                  </Link>
+                )}
+
+                {user?.role === "assessment_team" && (
+                  <Link
+                    to="/assessments"
+                    onClick={() => setOpen(false)}
+                    className="block text-center py-2 mb-2 border border-emerald-600 text-emerald-600 rounded-xl font-semibold"
+                  >
+                    Assessment Hub
                   </Link>
                 )}
 

@@ -26,7 +26,7 @@ const Register = () => {
     setSuccess("");
 
     try {
-      const response = await axiosInstance.post("auth/register/", formData);
+      await axiosInstance.post("auth/register/", formData);
       setSuccess("Registration successful! Redirecting to login...");
       setTimeout(() => navigate("/login"), 1500);
     } catch (err) {

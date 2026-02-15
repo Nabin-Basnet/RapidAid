@@ -67,7 +67,7 @@ export default function Home() {
         </p>
 
         <Link
-          to="/donate"
+          to="/donations"
           className="inline-block mt-6 px-8 py-3 bg-white text-blue-700 font-semibold rounded-xl shadow hover:bg-gray-100 transition"
         >
           Donate Now

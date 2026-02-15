@@ -151,6 +151,58 @@ export default function AdminLanding() {
           </p>
           <p className="text-sm text-slate-500 mt-2">Total users: {users.length}</p>
         </Link>
+
+        <Link
+          to="/admin/create-user"
+          className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-slate-300 transition"
+        >
+          <p className="text-xs uppercase tracking-wider text-slate-500">User Provisioning</p>
+          <p className="text-lg font-semibold text-slate-900 mt-2">
+            Create admin, rescue, assessment, and citizen accounts.
+          </p>
+          <p className="text-sm text-slate-500 mt-2">
+            Faster onboarding for role-based teams.
+          </p>
+        </Link>
+
+        <Link
+          to="/admin/rescue"
+          className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-slate-300 transition"
+        >
+          <p className="text-xs uppercase tracking-wider text-slate-500">Rescue Ops</p>
+          <p className="text-lg font-semibold text-slate-900 mt-2">
+            Manage rescue teams and assignments.
+          </p>
+          <p className="text-sm text-slate-500 mt-2">
+            Coordinate incident response execution.
+          </p>
+        </Link>
+
+        <Link
+          to="/admin/assessments"
+          className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-slate-300 transition"
+        >
+          <p className="text-xs uppercase tracking-wider text-slate-500">Assessments</p>
+          <p className="text-lg font-semibold text-slate-900 mt-2">
+            Record affected families and damage assessments.
+          </p>
+          <p className="text-sm text-slate-500 mt-2">
+            Keep verified impact records.
+          </p>
+        </Link>
+
+        <Link
+          to="/admin/ledger"
+          className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-slate-300 transition"
+        >
+          <p className="text-xs uppercase tracking-wider text-slate-500">Ledger</p>
+          <p className="text-lg font-semibold text-slate-900 mt-2">
+            View and log audit trail entries.
+          </p>
+          <p className="text-sm text-slate-500 mt-2">
+            End-to-end traceability of key changes.
+          </p>
+        </Link>
       </div>
     </div>
   );

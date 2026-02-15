@@ -6,7 +6,7 @@ import Register from "./Auth/Register";
 import Incidents from "./Pages/incidents/Incidents";
 import IncidentDetail from "./Pages/incidents/Incidentsdetail";
 import Profile from "./Pages/Profile";
-import DonationPage from "./Pages/donations/donationPage";
+import DonationPage from "./Pages/donations/DonationPage";
 import ReportIncident from "./Pages/incidents/ReportIncidents";
 import DonationForm from "./Pages/donations/DonationForm";
 import DonerRegister from "./Pages/donations/DonerRegister";
@@ -18,6 +18,11 @@ import AdminIncidents from "./Pages/Admin/AdminIncidents";
 import AdminVolunteers from "./Pages/Admin/AdminVolunteers";
 import AdminDonations from "./Pages/Admin/AdminDonations";
 import AdminUsers from "./Pages/Admin/AdminUsers";
+import AdminCreateUser from "./Pages/Admin/AdminCreateUser";
+import RescueDashboard from "./Pages/rescue/RescueDashboard";
+import AssessmentDashboard from "./Pages/assessments/AssessmentDashboard";
+import LedgerPage from "./Pages/ledger/LedgerPage";
+import EditProfile from "./Pages/profile/EditProfile";
 // import DonationPage from "./Pages/donations/DonationPage";
 
 const router = createBrowserRouter([
@@ -56,6 +61,22 @@ const router = createBrowserRouter([
       {
         path: "profile",
         element: <Profile />,
+      },
+      {
+        path: "profile/edit",
+        element: <EditProfile />,
+      },
+      {
+        path: "/rescue",
+        element: <RescueDashboard />,
+      },
+      {
+        path: "/assessments",
+        element: <AssessmentDashboard />,
+      },
+      {
+        path: "/ledger",
+        element: <LedgerPage />,
       },
       {
         path: "incidents",
@@ -103,6 +124,22 @@ const router = createBrowserRouter([
       {
         path: "users",
         element: <AdminUsers />,
+      },
+      {
+        path: "create-user",
+        element: <AdminCreateUser />,
+      },
+      {
+        path: "rescue",
+        element: <RescueDashboard />,
+      },
+      {
+        path: "assessments",
+        element: <AssessmentDashboard />,
+      },
+      {
+        path: "ledger",
+        element: <LedgerPage />,
       },
     ],
   },

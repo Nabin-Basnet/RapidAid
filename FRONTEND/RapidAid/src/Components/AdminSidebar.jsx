@@ -6,6 +6,10 @@ const navItems = [
   { label: "Volunteers", to: "/admin/volunteers" },
   { label: "Donations", to: "/admin/donations" },
   { label: "Users", to: "/admin/users" },
+  { label: "Create User", to: "/admin/create-user" },
+  { label: "Rescue Ops", to: "/admin/rescue" },
+  { label: "Assessments", to: "/admin/assessments" },
+  { label: "Ledger", to: "/admin/ledger" },
 ];
 
 export default function AdminSidebar() {

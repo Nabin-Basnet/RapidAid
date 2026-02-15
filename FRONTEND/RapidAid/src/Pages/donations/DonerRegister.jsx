@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../api/Axios";
 
@@ -7,7 +7,37 @@ const DonerRegister = () => {
   const user = JSON.parse(localStorage.getItem("user"));
 
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const checkDonor = async () => {
+      try {
+        const token = localStorage.getItem("access");
+        if (!token) {
+          navigate("/login");
+          return;
+        }
+
+        const res = await axiosInstance.get("/donations/donor/me/");
+        if (res.data?.has_donor) {
+          localStorage.setItem("has_donor", "true");
+          navigate("/donations");
+          return;
+        }
+      } catch (err) {
+        const status = err?.response?.status;
+        if (status === 401 || status === 403) {
+          navigate("/login");
+          return;
+        }
+      } finally {
+        setChecking(false);
+      }
+    };
+
+    checkDonor();
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,16 +53,26 @@ const DonerRegister = () => {
     try {
       await axiosInstance.post("/donations/donor/create/");
 
-      // optional cache
       localStorage.setItem("has_donor", "true");
-
       navigate("/donations");
     } catch (err) {
-      console.error(err);
-      setError(
-        err.response?.data?.detail ||
-          "Failed to create donor. You may already be registered."
-      );
+      const status = err?.response?.status;
+      const detail = String(err?.response?.data?.detail || "").toLowerCase();
+
+      if (status === 401 || status === 403 && detail.includes("authentication")) {
+        setError("Please login again.");
+        navigate("/login");
+        return;
+      }
+
+      // Backend returns 403 when donor already exists.
+      if (status === 403 && detail.includes("already")) {
+        localStorage.setItem("has_donor", "true");
+        navigate("/donations");
+        return;
+      }
+
+      setError(err?.response?.data?.detail || "Failed to create donor profile.");
     } finally {
       setLoading(false);
     }
@@ -64,6 +104,12 @@ const DonerRegister = () => {
           </div>
         )}
 
+        {checking ? (
+          <div className="text-sm text-slate-500 text-center py-4">
+            Checking donor profile...
+          </div>
+        ) : null}
+
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* User Name (Read Only Display) */}
           <div>
@@ -81,7 +127,7 @@ const DonerRegister = () => {
           {/* Submit */}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || checking}
             className="w-full bg-emerald-600 text-white py-3 rounded-xl font-semibold hover:bg-emerald-700 transition disabled:opacity-50 shadow-sm"
           >
             {loading ? "Registering..." : "Register as Donor"}

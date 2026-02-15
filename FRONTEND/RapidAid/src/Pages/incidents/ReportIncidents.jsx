@@ -68,9 +68,8 @@ export default function ReportIncidentsPage() {
       setSeverity("");
       setIncidentDate("");
       setFiles([]);
-      console.log("Response:", response.data);
-       console.log("Upload error data:", err.response?.data);
-      const data = err.response?.data;
+    } catch (err) {
+      const data = err?.response?.data;
       const message =
         data?.detail ||
         data?.file?.[0] ||
@@ -78,8 +77,6 @@ export default function ReportIncidentsPage() {
         data?.non_field_errors?.[0] ||
         "Something went wrong";
       setError(message);
-;
-      setError(err.response?.data?.detail || "Something went wrong");
     } finally {
       setLoading(false);
     }
