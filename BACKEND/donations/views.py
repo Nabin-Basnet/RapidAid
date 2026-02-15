@@ -1,5 +1,6 @@
 from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.response import Response
 
 from .models import Donor, Donation
 from .serializers import DonorSerializer, DonationSerializer
@@ -20,6 +21,28 @@ class CreateDonorAPIView(generics.CreateAPIView):
             raise PermissionDenied("Donor profile already exists")
 
         serializer.save(user=user)
+
+
+# ==================================
+# CURRENT USER DONOR PROFILE STATUS
+# ==================================
+class DonorMeAPIView(generics.GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        if hasattr(user, "donor_profile"):
+            donor = user.donor_profile
+            return Response({
+                "has_donor": True,
+                "donor": DonorSerializer(donor).data,
+            })
+
+        return Response({
+            "has_donor": False,
+            "donor": None,
+        })
 
 
 # ==================================

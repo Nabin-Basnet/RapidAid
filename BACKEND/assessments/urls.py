@@ -3,6 +3,7 @@ from .views import (
     AddAffectedFamilyAPIView,
     AffectedFamilyListAPIView,
     LossAssessmentAPIView,
+    LossAssessmentListAPIView,
     LossAssessmentDetailAPIView,
 )
 
@@ -13,5 +14,6 @@ urlpatterns = [
 
     # Loss assessment
     path("loss/add/", LossAssessmentAPIView.as_view(), name="loss-add"),
+    path("loss/", LossAssessmentListAPIView.as_view(), name="loss-list"),
     path("loss/<int:pk>/", LossAssessmentDetailAPIView.as_view(), name="loss-detail"),
 ]

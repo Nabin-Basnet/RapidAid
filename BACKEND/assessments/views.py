@@ -56,6 +56,15 @@ class LossAssessmentAPIView(generics.CreateAPIView):
 
 
 # =========================================
+# LOSS ASSESSMENT LIST
+# =========================================
+class LossAssessmentListAPIView(generics.ListAPIView):
+    serializer_class = LossAssessmentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    queryset = LossAssessment.objects.all().order_by("-assessed_at")
+
+
+# =========================================
 # LOSS ASSESSMENT DETAIL
 # =========================================
 class LossAssessmentDetailAPIView(generics.RetrieveAPIView):
