@@ -41,3 +41,12 @@ class RescueAssignmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = RescueAssignment
         fields = "__all__"
+
+
+# -----------------------------------------
+# RESCUE STATUS UPDATE
+# -----------------------------------------
+class RescueStatusUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RescueAssignment
+        fields = ["status"]

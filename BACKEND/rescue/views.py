@@ -6,7 +6,8 @@ from .models import RescueTeam, RescueTeamMember, RescueAssignment
 from .serializers import (
     RescueTeamSerializer,
     RescueTeamMemberSerializer,
-    RescueAssignmentSerializer
+    RescueAssignmentSerializer,
+    RescueStatusUpdateSerializer,
 )
 from Authapp.permissions import IsAdminRole
 from incidents.models import IncidentStatus
@@ -57,9 +58,14 @@ class RescueAssignmentListAPIView(generics.ListAPIView):
 # UPDATE RESCUE STATUS (TEAM MEMBER)
 # =========================================
 class UpdateRescueStatusAPIView(generics.UpdateAPIView):
-    serializer_class = RescueAssignmentSerializer
+    serializer_class = RescueStatusUpdateSerializer
     permission_classes = [permissions.IsAuthenticated]
     queryset = RescueAssignment.objects.all()
+
+    def get_serializer_class(self):
+        if self.request.method in ["PUT", "PATCH"]:
+            return RescueStatusUpdateSerializer
+        return RescueAssignmentSerializer
 
     def perform_update(self, serializer):
         assignment = self.get_object()
@@ -72,7 +78,7 @@ class UpdateRescueStatusAPIView(generics.UpdateAPIView):
         ):
             raise PermissionDenied("Not allowed")
 
-        status = self.request.data.get("status")
+        status = serializer.validated_data.get("status")
 
         if status == "active":
             serializer.save(started_at=timezone.now())

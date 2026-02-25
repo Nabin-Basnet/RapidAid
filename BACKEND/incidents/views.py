@@ -1,5 +1,6 @@
 from rest_framework import generics, permissions
 from rest_framework.exceptions import PermissionDenied
+from django.shortcuts import get_object_or_404
 
 from .models import Incident, IncidentMedia, IncidentStatus
 from .serializers import (
@@ -36,7 +37,7 @@ class IncidentMediaUploadAPIView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         incident_id = self.kwargs.get("incident_id")
-        incident = Incident.objects.get(id=incident_id)
+        incident = get_object_or_404(Incident, id=incident_id)
 
         if (
             self.request.user != incident.reporter
