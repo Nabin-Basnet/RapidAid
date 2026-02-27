@@ -28,6 +28,11 @@ class Donation(models.Model):
         ("money", "Money"),
         ("item", "Item"),
     )
+    PAYMENT_STATUS = (
+        ("pending", "Pending"),
+        ("paid", "Paid"),
+        ("failed", "Failed"),
+    )
 
     donor = models.ForeignKey(
         Donor,
@@ -67,6 +72,13 @@ class Donation(models.Model):
     is_anonymous = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
+    payment_status = models.CharField(
+        max_length=10,
+        choices=PAYMENT_STATUS,
+        default="paid",
+    )
+    khalti_pidx = models.CharField(max_length=100, blank=True, null=True, unique=True)
+    khalti_transaction_id = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
         return f"{self.donation_type} donation to {self.incident.title}"

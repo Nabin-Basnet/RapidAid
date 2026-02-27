@@ -215,3 +215,18 @@ DEFAULT_FROM_EMAIL = os.getenv(
     f"RapidAid <{EMAIL_HOST_USER}>" if EMAIL_HOST_USER else "RapidAid <noreply@rapidaid.local>",
 )
 EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+
+PASSWORD_RESET_FRONTEND_URL = os.getenv(
+    "PASSWORD_RESET_FRONTEND_URL",
+    "http://localhost:5173/reset-password",
+)
+
+# Khalti ePayment configuration
+KHALTI_SECRET_KEY = os.getenv("KHALTI_SECRET_KEY", "")
+KHALTI_PUBLIC_KEY = os.getenv("KHALTI_PUBLIC_KEY", "")
+KHALTI_API_BASE_URL = os.getenv("KHALTI_API_BASE_URL", "https://khalti.com/api/v2")
+KHALTI_WEBSITE_URL = os.getenv("KHALTI_WEBSITE_URL", "http://localhost:5173")
+KHALTI_RETURN_URL = os.getenv(
+    "KHALTI_RETURN_URL",
+    "http://localhost:5173/donations/khalti/callback",
+)

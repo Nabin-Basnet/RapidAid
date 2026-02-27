@@ -8,6 +8,7 @@ from .serializers import (
 )
 from Authapp.permissions import IsAdminRole
 from incidents.models import IncidentStatus
+from ledger.utils import create_ledger_entry
 
 
 # =========================================
@@ -27,7 +28,15 @@ class AddAffectedFamilyAPIView(generics.CreateAPIView):
         if incident.status != IncidentStatus.VERIFIED:
             raise PermissionDenied("Incident must be verified first")
 
-        serializer.save()
+        family = serializer.save()
+        create_ledger_entry(
+            module="affected_families",
+            reference_id=family.id,
+            action="created",
+            changed_by=user,
+            new_data={"incident_id": family.incident_id, "head_of_family_name": family.head_of_family_name},
+            note="Affected family record added.",
+        )
 
 
 # =========================================
@@ -52,7 +61,19 @@ class LossAssessmentAPIView(generics.CreateAPIView):
         if not (user.is_admin_role or user.is_assessment_team):
             raise PermissionDenied("Not allowed")
 
-        serializer.save(assessed_by=user)
+        assessment = serializer.save(assessed_by=user)
+        create_ledger_entry(
+            module="loss_assessments",
+            reference_id=assessment.id,
+            action="created",
+            changed_by=user,
+            new_data={
+                "family_id": assessment.family_id,
+                "house_damage": assessment.house_damage,
+                "estimated_property_loss": str(assessment.estimated_property_loss),
+            },
+            note="Loss assessment recorded.",
+        )
 
 
 # =========================================

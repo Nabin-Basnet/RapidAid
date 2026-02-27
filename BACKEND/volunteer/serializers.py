@@ -7,6 +7,10 @@ class VolunteerAssignmentSerializer(serializers.ModelSerializer):
         source="user.full_name",
         read_only=True
     )
+    user_email = serializers.CharField(
+        source="user.email",
+        read_only=True
+    )
     incident_title = serializers.CharField(
         source="incident.title",
         read_only=True

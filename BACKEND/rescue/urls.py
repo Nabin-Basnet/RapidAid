@@ -2,12 +2,14 @@ from django.urls import path
 from .views import (
     CreateRescueTeamAPIView,
     AddRescueTeamMemberAPIView,
+    RescueTeamListAPIView,
     AssignRescueTeamAPIView,
     RescueAssignmentListAPIView,
     UpdateRescueStatusAPIView,
 )
 
 urlpatterns = [
+    path("teams/", RescueTeamListAPIView.as_view()),
     path("teams/create/", CreateRescueTeamAPIView.as_view()),
     path("teams/members/add/", AddRescueTeamMemberAPIView.as_view()),
 

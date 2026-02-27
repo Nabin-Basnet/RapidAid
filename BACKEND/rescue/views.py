@@ -11,6 +11,7 @@ from .serializers import (
 )
 from Authapp.permissions import IsAdminRole
 from incidents.models import IncidentStatus
+from ledger.utils import create_ledger_entry
 
 
 # =========================================
@@ -20,6 +21,17 @@ class CreateRescueTeamAPIView(generics.CreateAPIView):
     serializer_class = RescueTeamSerializer
     permission_classes = [IsAdminRole]
 
+    def perform_create(self, serializer):
+        team = serializer.save()
+        create_ledger_entry(
+            module="rescue_teams",
+            reference_id=team.id,
+            action="created",
+            changed_by=self.request.user,
+            new_data={"name": team.name, "organization": team.organization},
+            note="Rescue team created.",
+        )
+
 
 # =========================================
 # ADMIN: ADD TEAM MEMBER
@@ -27,6 +39,29 @@ class CreateRescueTeamAPIView(generics.CreateAPIView):
 class AddRescueTeamMemberAPIView(generics.CreateAPIView):
     serializer_class = RescueTeamMemberSerializer
     permission_classes = [IsAdminRole]
+
+    def perform_create(self, serializer):
+        member = serializer.save()
+        create_ledger_entry(
+            module="rescue_team_members",
+            reference_id=member.id,
+            action="created",
+            changed_by=self.request.user,
+            new_data={"team_id": member.team_id, "user_id": member.user_id, "role": member.role},
+            note="Rescue team member added.",
+        )
+
+
+class RescueTeamListAPIView(generics.ListAPIView):
+    serializer_class = RescueTeamSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = RescueTeam.objects.prefetch_related("members").order_by("-id")
+        user = self.request.user
+        if user.is_admin_role:
+            return qs
+        return qs.filter(members__user=user).distinct()
 
 
 # =========================================
@@ -39,10 +74,21 @@ class AssignRescueTeamAPIView(generics.CreateAPIView):
     def perform_create(self, serializer):
         incident = serializer.validated_data["incident"]
 
-        if incident.status != IncidentStatus.VERIFIED:
-            raise PermissionDenied("Incident must be verified")
+        if incident.status not in [IncidentStatus.VERIFIED, IncidentStatus.IN_RESCUE]:
+            raise PermissionDenied("Incident must be verified or already in rescue")
 
-        serializer.save()
+        assignment = serializer.save()
+        if incident.status != IncidentStatus.IN_RESCUE:
+            incident.status = IncidentStatus.IN_RESCUE
+            incident.save(update_fields=["status"])
+        create_ledger_entry(
+            module="rescue_assignments",
+            reference_id=assignment.id,
+            action="created",
+            changed_by=self.request.user,
+            new_data={"incident_id": assignment.incident_id, "team_id": assignment.team_id, "status": assignment.status},
+            note="Rescue team assigned to incident.",
+        )
 
 
 # =========================================
@@ -51,7 +97,13 @@ class AssignRescueTeamAPIView(generics.CreateAPIView):
 class RescueAssignmentListAPIView(generics.ListAPIView):
     serializer_class = RescueAssignmentSerializer
     permission_classes = [permissions.IsAuthenticated]
-    queryset = RescueAssignment.objects.all().order_by("-id")
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = RescueAssignment.objects.select_related("team", "incident").order_by("-id")
+        if user.is_admin_role:
+            return qs
+        return qs.filter(team__members__user=user).distinct()
 
 
 # =========================================
@@ -70,6 +122,7 @@ class UpdateRescueStatusAPIView(generics.UpdateAPIView):
     def perform_update(self, serializer):
         assignment = self.get_object()
         user = self.request.user
+        previous_status = assignment.status
 
         # Only rescue team members or admin
         if not (
@@ -86,3 +139,14 @@ class UpdateRescueStatusAPIView(generics.UpdateAPIView):
             serializer.save(completed_at=timezone.now())
         else:
             serializer.save()
+
+        assignment.refresh_from_db()
+        create_ledger_entry(
+            module="rescue_assignments",
+            reference_id=assignment.id,
+            action="updated",
+            changed_by=user,
+            old_data={"status": previous_status},
+            new_data={"status": assignment.status},
+            note="Rescue assignment status updated.",
+        )

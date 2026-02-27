@@ -12,6 +12,7 @@ from Authapp.permissions import IsAdminRole
 from incidents.models import IncidentStatus
 from rescue.models import RescueTeam, RescueTeamMember, RescueAssignment
 from RapidAid.email_utils import send_notification_email
+from ledger.utils import create_ledger_entry
 
 
 # =========================================
@@ -45,7 +46,18 @@ class ApplyVolunteerAPIView(generics.CreateAPIView):
                 "You are already volunteering in another incident"
             )
 
-        serializer.save(user=user)
+        assignment = serializer.save(user=user)
+        create_ledger_entry(
+            module="volunteer_assignments",
+            reference_id=assignment.id,
+            action="created",
+            changed_by=user,
+            new_data={
+                "incident_id": assignment.incident_id,
+                "status": assignment.status,
+            },
+            note="Volunteer application submitted.",
+        )
 
 
 # =========================================
@@ -122,6 +134,17 @@ class AdminUpdateVolunteerAPIView(generics.UpdateAPIView):
                 serializer.save(completed_at=timezone.now())
             else:
                 serializer.save()
+
+            assignment.refresh_from_db()
+            create_ledger_entry(
+                module="volunteer_assignments",
+                reference_id=assignment.id,
+                action="updated",
+                changed_by=self.request.user,
+                old_data={"status": previous_status},
+                new_data={"status": assignment.status},
+                note="Volunteer assignment status updated.",
+            )
 
 
 # =========================================

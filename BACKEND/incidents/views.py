@@ -11,6 +11,7 @@ from .serializers import (
 )
 
 from Authapp.permissions import IsAdminRole
+from ledger.utils import create_ledger_entry
 
 
 # ======================================================
@@ -24,7 +25,15 @@ class ReportIncidentAPIView(generics.CreateAPIView):
     def perform_create(self, serializer):
         if not self.request.user.is_citizen:
             raise PermissionDenied("Only citizens can report incidents")
-        serializer.save()
+        incident = serializer.save()
+        create_ledger_entry(
+            module="incidents",
+            reference_id=incident.id,
+            action="created",
+            changed_by=self.request.user,
+            new_data={"status": incident.status, "title": incident.title},
+            note="Incident reported by citizen.",
+        )
 
 
 # ======================================================
@@ -45,9 +54,17 @@ class IncidentMediaUploadAPIView(generics.CreateAPIView):
         ):
             raise PermissionDenied("Not allowed")
 
-        serializer.save(
+        media = serializer.save(
             incident=incident,
             uploaded_by=self.request.user
+        )
+        create_ledger_entry(
+            module="incident_media",
+            reference_id=media.id,
+            action="created",
+            changed_by=self.request.user,
+            new_data={"incident_id": incident.id, "media_type": media.media_type},
+            note="Incident media uploaded.",
         )
 
 
@@ -95,3 +112,17 @@ class IncidentAdminUpdateAPIView(generics.UpdateAPIView):
     serializer_class = IncidentAdminUpdateSerializer
     permission_classes = [IsAdminRole]
     queryset = Incident.objects.all()
+
+    def perform_update(self, serializer):
+        incident = self.get_object()
+        previous_status = incident.status
+        updated = serializer.save()
+        create_ledger_entry(
+            module="incidents",
+            reference_id=updated.id,
+            action="updated",
+            changed_by=self.request.user,
+            old_data={"status": previous_status},
+            new_data={"status": updated.status},
+            note="Admin updated incident status.",
+        )
