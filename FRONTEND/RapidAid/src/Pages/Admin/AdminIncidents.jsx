@@ -21,112 +21,60 @@ export default function AdminIncidents() {
       const res = await axiosInstance.get("incidents/");
       setIncidents(parseList(res.data));
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to load incidents.");
-    } finally {
-      setLoading(false);
-    }
+      setError(err?.response?.data?.detail || "Failed to load incidents.");
+    } finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    refreshData();
-  }, []);
+  useEffect(() => { refreshData(); }, []);
 
   const handleIncidentStatus = async (incidentId, status) => {
     const key = `incident-${incidentId}`;
     try {
       setActionState((prev) => ({ ...prev, [key]: true }));
-      await axiosInstance.patch(`incidents/admin/${incidentId}/update/`, {
-        status,
-      });
+      await axiosInstance.patch(`incidents/admin/${incidentId}/update/`, { status });
       await refreshData();
     } catch (err) {
-      setError(
-        err.response?.data?.detail ||
-          "Could not update incident status. Please try again."
-      );
+      setError(err?.response?.data?.detail || "Could not update incident status.");
     } finally {
       setActionState((prev) => ({ ...prev, [key]: false }));
     }
   };
 
-  if (loading) {
-    return (
-      <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center">
-        <p className="text-slate-600 font-medium">Loading incidents...</p>
-      </div>
-    );
-  }
-
-  const visibleIncidents = incidents.filter((incident) => incident.status !== "rejected");
+  if (loading) return <div className="rounded-3xl border border-[#d4e2eb] bg-white p-8 text-sm text-[var(--text-soft)]">Loading incidents...</div>;
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="text-xs tracking-[0.22em] uppercase text-slate-500 font-semibold">
-          Incidents
-        </p>
-        <h1 className="text-2xl font-bold text-slate-900 mt-1">
-          Incident Moderation
-        </h1>
-        <p className="text-sm text-slate-500 mt-2">
-          Review reports and update incident status.
-        </p>
-      </div>
+      <section className="rounded-3xl border border-[#d4e2eb] bg-white p-6">
+        <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-soft)]">Incidents</p>
+        <h1 className="mt-2 text-3xl font-extrabold text-[var(--text)]">Incident Moderation</h1>
+      </section>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-          {error}
-        </div>
-      )}
+      {error && <p className="rounded-xl bg-[#fff1f1] px-3 py-2 text-sm text-[#b42318]">{error}</p>}
 
-      <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-200">
-        {visibleIncidents.length === 0 && (
-          <p className="px-5 py-6 text-sm text-slate-500">
-            No incidents available.
-          </p>
-        )}
-
-        {visibleIncidents.map((incident) => {
+      <section className="rounded-3xl border border-[#d4e2eb] bg-white">
+        {incidents.filter((i) => i.status !== "rejected").map((incident) => {
           const loadingKey = `incident-${incident.id}`;
-          const statusOptions = INCIDENT_STATUSES.filter((option) => {
-            if (incident.status === "verified" && option.value === "rejected") {
-              return false;
-            }
-            return true;
-          });
+          const statusOptions = INCIDENT_STATUSES.filter((option) => !(incident.status === "verified" && option.value === "rejected"));
           return (
-            <div key={incident.id} className="px-5 py-4">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <article key={incident.id} className="border-b border-[#ecf2f7] px-5 py-4 last:border-b-0">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div>
-                  <p className="text-base font-semibold text-slate-900">
-                    {incident.title}
-                  </p>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Status: <span className="font-semibold">{incident.status}</span> |{" "}
-                    {incident.location}
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Reported by {incident.reporter_name || "Unknown"} |{" "}
-                    {formatDate(incident.created_at)}
-                  </p>
+                  <p className="text-lg font-semibold text-[var(--text)]">{incident.title}</p>
+                  <p className="text-sm text-[var(--text-soft)]">Status: {incident.status} | {incident.location}</p>
+                  <p className="text-xs text-[var(--text-soft)]">Reported by {incident.reporter_name || "Unknown"} | {formatDate(incident.created_at)}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {statusOptions.map((item) => (
-                    <button
-                      key={item.value}
-                      onClick={() => handleIncidentStatus(incident.id, item.value)}
-                      disabled={!!actionState[loadingKey]}
-                      className="px-3 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold hover:bg-slate-700 disabled:opacity-50"
-                    >
+                    <button key={item.value} onClick={() => handleIncidentStatus(incident.id, item.value)} disabled={!!actionState[loadingKey]} className="rounded-xl bg-[var(--brand)] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">
                       {item.label}
                     </button>
                   ))}
                 </div>
               </div>
-            </div>
+            </article>
           );
         })}
-      </div>
+      </section>
     </div>
   );
 }

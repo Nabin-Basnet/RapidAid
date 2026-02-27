@@ -1,372 +1,165 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { User, Mail, Phone, AlertCircle, Users, DollarSign, LogOut, MapPin, Calendar, Shield } from "lucide-react";
+import { User, Mail, Phone, AlertCircle, Users, DollarSign, LogOut, Calendar, Shield, Activity } from "lucide-react";
 import axiosInstance from "../api/Axios";
 import { logoutUser } from "../Auth/utils";
+
+const formatCurrency = (amount) =>
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(amount || 0));
+
+const formatStatus = (value) =>
+  value ? value.toString().replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()) : "N/A";
 
 export default function Profile() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [localUser, setLocalUser] = useState(null);
-
-  const logout = async () => {
-    await logoutUser();
-    navigate("/login");
-  };
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token = localStorage.getItem("access");
-        const stored = localStorage.getItem("user");
-        setLocalUser(stored ? JSON.parse(stored) : null);
-        if (!token) {
+        if (!localStorage.getItem("access")) {
           navigate("/login");
           return;
         }
-
         const res = await axiosInstance.get("auth/profile/");
-
         setProfile(res.data);
       } catch (err) {
-        console.error(err);
-        const status = err?.response?.status;
-        if (status === 401 || status === 403) {
+        if (err?.response?.status === 401 || err?.response?.status === 403) {
           navigate("/login");
           return;
         }
-        if (!profile) {
-          const stored = localStorage.getItem("user");
-          setProfile({ user: stored ? JSON.parse(stored) : {} });
-        }
-        setError("Could not load profile details. Please try again.");
+        setError("Could not load profile details.");
       } finally {
         setLoading(false);
       }
     };
-
     fetchProfile();
   }, [navigate]);
 
-  if (loading) return <p className="pt-24 text-center">Loading...</p>;
-  if (!profile && !error) return null;
+  const data = useMemo(() => {
+    const fallbackUser = JSON.parse(localStorage.getItem("user") || "{}");
+    return {
+      user: { ...fallbackUser, ...(profile?.user || {}) },
+      incident: profile?.incident_activity || {},
+      donation: profile?.donation_activity || {},
+      rescue: profile?.rescue_activity || {},
+      volunteer: profile?.volunteer_activity || {},
+      recentIncidents: profile?.recent_incidents || [],
+      recentDonations: profile?.recent_donations || [],
+      recentVolunteer: profile?.recent_volunteer || [],
+    };
+  }, [profile]);
 
-  const {
-    user = {},
-    incident_activity = {},
-    rescue_activity = {},
-    donation_activity = {},
-    volunteer_activity = {},
-    recent_incidents = [],
-    recent_donations = [],
-    recent_volunteer = [],
-  } = profile ?? {};
+  if (loading) {
+    return <div className="section-wrap min-h-screen pt-28"><div className="rounded-3xl border border-[#d4e2eb] bg-white p-8 text-sm text-[var(--text-soft)]">Loading profile...</div></div>;
+  }
 
-  const mergedUser = { ...(localUser || {}), ...user };
-  const displayName = mergedUser.full_name || mergedUser.name || mergedUser.username || "User";
-  const roleLabel = mergedUser.role_display || mergedUser.role || "Member";
-  const initials = displayName
+  const initials = (data.user.full_name || "User")
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
-    .map((part) => part[0])
+    .map((p) => p[0])
     .join("")
     .toUpperCase();
-
-  const formatINR = (amount) =>
-    new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(Number(amount ?? 0));
-
-  const formatStatus = (value) => {
-    if (!value) return "Status not available";
-    return value
-      .toString()
-      .replace(/_/g, " ")
-      .replace(/\b\w/g, (char) => char.toUpperCase());
-  };
-
-  const hasActivity =
-    (incident_activity.total_reported ?? 0) > 0 ||
-    (rescue_activity.total_assignments ?? 0) > 0 ||
-    Number(donation_activity.total_money_donated ?? 0) > 0 ||
-    (volunteer_activity.total_assignments ?? 0) > 0 ||
-    recent_incidents.length > 0 ||
-    recent_donations.length > 0 ||
-    recent_volunteer.length > 0;
-
-  const secondaryStats = [
-    {
-      label: "Total Donations",
-      value:
-        donation_activity.total_money_donated || donation_activity.total_money_donated === 0
-          ? formatINR(donation_activity.total_money_donated)
-          : "Not available",
-    },
-    {
-      label: "Donation Count",
-      value:
-        donation_activity.total_donations || donation_activity.total_donations === 0
-          ? donation_activity.total_donations
-          : "Not available",
-    },
-    {
-      label: "Reported Incidents",
-      value:
-        incident_activity.total_reported || incident_activity.total_reported === 0
-          ? incident_activity.total_reported
-          : "Not available",
-    },
-    {
-      label: "Volunteer Contributions",
-      value:
-        volunteer_activity.total_assignments || volunteer_activity.total_assignments === 0
-          ? volunteer_activity.total_assignments
-          : "Not available",
-    },
-    {
-      label: "Rescue Assignments",
-      value:
-        rescue_activity.total_assignments || rescue_activity.total_assignments === 0
-          ? rescue_activity.total_assignments
-          : "Not available",
-    },
-  ];
-
-  const detailItems = [
-    { label: "User ID", value: mergedUser.id },
-    { label: "Email", value: mergedUser.email },
-    { label: "Phone", value: mergedUser.phone },
-    { label: "Role", value: roleLabel },
-    {
-      label: "Joined",
-      value: mergedUser.date_joined
-        ? new Date(mergedUser.date_joined).toLocaleDateString()
-        : null,
-      icon: Calendar,
-    },
-  ];
+  const profilePhotoUrl = data.user.profile_photo_url || data.user.profile_photo || "";
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 pt-24 flex flex-col items-center">
-      <div className="w-full max-w-4xl bg-white rounded-3xl shadow-xl p-8">
-        {error && (
-          <div className="mb-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+    <div className="section-wrap pb-12 pt-24">
+      {error && <p className="mb-4 rounded-xl bg-[#fff1f1] px-3 py-2 text-sm text-[#b42318]">{error}</p>}
 
-        {/* Header */}
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-sky-500 to-cyan-500 p-8 text-white">
-          <div className="flex flex-col md:flex-row items-center gap-6">
-            <div className="w-24 h-24 rounded-2xl bg-white/20 text-white flex items-center justify-center text-2xl font-bold shadow">
-              {initials || <User size={36} />}
+      <section className="rounded-[28px] border border-[#cddde7] bg-[#0f2a3f] p-7 text-white md:p-9">
+        <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-4">
+            <div className="grid h-20 w-20 place-items-center overflow-hidden rounded-2xl bg-white/15 text-2xl font-bold">
+              {profilePhotoUrl && !avatarFailed ? (
+                <img
+                  src={profilePhotoUrl}
+                  alt={`${data.user.full_name || "User"} profile`}
+                  className="h-full w-full object-cover"
+                  onError={() => setAvatarFailed(true)}
+                />
+              ) : (
+                initials || <User size={26} />
+              )}
             </div>
-            <div className="text-center md:text-left">
-              <h2 className="text-2xl md:text-3xl font-bold">{displayName}</h2>
-              <p className="text-white/90 mt-1 flex items-center justify-center md:justify-start gap-2 text-sm">
-                <Shield size={16} /> {roleLabel}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2 justify-center md:justify-start">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs">
-                  <Mail size={14} /> {mergedUser.email || "Email not provided"}
-                </span>
-                <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs">
-                  <Phone size={14} /> {mergedUser.phone || "Phone not provided"}
-                </span>
-              </div>
+            <div>
+              <h1 className="text-3xl font-extrabold">{data.user.full_name || "User"}</h1>
+              <p className="mt-1 inline-flex items-center gap-2 text-sm text-[#c8d7e4]"><Shield size={14} />{data.user.role_display || data.user.role || "Member"}</p>
             </div>
           </div>
-        </div>
-
-        {/* Details */}
-        <div className="mt-8">
-          <div className="flex items-center justify-between gap-2 text-gray-700">
-            <div className="flex items-center gap-2">
-            <MapPin size={18} className="text-blue-600" />
-            <h3 className="font-semibold">Account Details</h3>
-            </div>
-            <Link
-              to="/profile/edit"
-              className="text-xs font-semibold text-blue-600 hover:underline"
-            >
-              Edit Profile
-            </Link>
-          </div>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {detailItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3"
-                >
-                  <div className="flex items-center gap-3 text-gray-600">
-                    {Icon ? <Icon size={16} className="text-blue-600" /> : null}
-                    <span className="text-sm">{item.label}</span>
-                  </div>
-                  <span className="text-sm font-medium text-gray-800">
-                    {item.value || "Not provided"}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Activity */}
-        <div className="mt-8">
-          <div className="flex items-center gap-2 text-gray-700">
-            <AlertCircle size={18} className="text-red-500" />
-            <h3 className="font-semibold">Activity Snapshot</h3>
-          </div>
-          {hasActivity ? (
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="flex flex-col items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                <AlertCircle className="text-red-500" size={24} />
-                <span className="mt-2 font-bold text-lg">{incident_activity.total_reported ?? 0}</span>
-                <span className="text-sm text-gray-500">Incidents Reported</span>
-              </div>
-              <div className="flex flex-col items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                <Users className="text-green-500" size={24} />
-                <span className="mt-2 font-bold text-lg">{rescue_activity.total_assignments ?? 0}</span>
-                <span className="text-sm text-gray-500">Rescue Assignments</span>
-              </div>
-              <div className="flex flex-col items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                <DollarSign className="text-yellow-500" size={24} />
-                <span className="mt-2 font-bold text-lg">
-                  {formatINR(donation_activity.total_money_donated)}
-                </span>
-                <span className="text-sm text-gray-500">Total Donations</span>
-              </div>
-              <div className="flex flex-col items-center p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                <Users className="text-emerald-500" size={24} />
-                <span className="mt-2 font-bold text-lg">
-                  {volunteer_activity.total_assignments ?? 0}
-                </span>
-                <span className="text-sm text-gray-500">Volunteer Assignments</span>
-              </div>
-            </div>
-          ) : (
-            <p className="mt-3 text-sm text-gray-500">
-              No activity data available yet. Once you report incidents or donate, your activity will appear here.
-            </p>
-          )}
-        </div>
-
-        {/* Contribution Details */}
-        <div className="mt-8">
-          <div className="flex items-center gap-2 text-gray-700">
-            <Users size={18} className="text-green-600" />
-            <h3 className="font-semibold">Contribution Details</h3>
-          </div>
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {secondaryStats.map((stat) => (
-              <div
-                key={stat.label}
-                className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
-              >
-                <p className="text-xs uppercase tracking-wide text-gray-400">{stat.label}</p>
-                <p className="mt-2 text-lg font-semibold text-gray-800">{stat.value}</p>
-                {stat.value === "Not available" ? (
-                  <p className="mt-2 text-xs text-gray-400">
-                    Not available.
-                  </p>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Incidents Summary */}
-        <div className="mt-8">
-          <div className="flex items-center gap-2 text-gray-700">
-            <AlertCircle size={18} className="text-red-500" />
-            <h3 className="font-semibold">Reported Incidents</h3>
-          </div>
-          {recent_incidents.length > 0 ? (
-            <div className="mt-4 space-y-3">
-              {recent_incidents.map((inc) => (
-                <div
-                  key={inc.id}
-                  className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3"
-                >
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                    <div>
-                      <p className="font-semibold text-gray-800">{inc.title}</p>
-                      <p className="text-xs text-gray-500">{inc.incident_type || "Incident"}</p>
-                    </div>
-                    <span className="text-xs font-medium rounded-full bg-white px-3 py-1 text-gray-600 shadow-sm">
-                      {formatStatus(inc.status)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-4 rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-              No incident details available yet.
-            </div>
-          )}
-        </div>
-
-        {/* Recent Donations */}
-        <div className="mt-6">
-          <h3 className="font-semibold text-gray-700 mb-2">Recent Donations</h3>
-          {recent_donations.length > 0 ? (
-            <ul className="space-y-2">
-              {recent_donations.map((don) => (
-                <li
-                  key={don.id ?? `${don.donation_type}-${don.created_at}`}
-                  className="p-3 bg-gray-50 rounded-xl shadow flex justify-between"
-                >
-                  <span>
-                    {don.donation_type === "money"
-                      ? formatINR(don.amount)
-                      : `${don.item_name || "Item"}${don.quantity ? ` x${don.quantity}` : ""}`}
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    {don.incident_title || "General donation"}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-400">No recent donations</p>
-          )}
-        </div>
-
-        {/* Recent Volunteer Assignments */}
-        <div className="mt-6">
-          <h3 className="font-semibold text-gray-700 mb-2">Volunteer Contributions</h3>
-          {recent_volunteer.length > 0 ? (
-            <ul className="space-y-2">
-              {recent_volunteer.map((vol) => (
-                <li key={vol.id} className="p-3 bg-gray-50 rounded-xl shadow flex justify-between">
-                  <span>{vol.incident_title || "Incident"}</span>
-                  <span className="text-sm text-gray-500">{formatStatus(vol.status)}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-400">No volunteer contributions</p>
-          )}
-        </div>
-
-        {/* Logout Button */}
-        <div className="mt-8">
-          <button
-            onClick={logout}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition"
-          >
-            <LogOut size={18} /> Logout
+          <button onClick={async () => { await logoutUser(); navigate("/login"); }} className="rounded-xl bg-[#b42318] px-4 py-2 text-sm font-bold text-white">
+            <LogOut size={14} className="mr-1 inline" />Logout
           </button>
         </div>
-      </div>
+      </section>
+
+      <section className="mt-6 grid gap-4 md:grid-cols-4">
+        <div className="rounded-2xl border border-[#d4e2eb] bg-white p-4"><p className="text-xs text-[var(--text-soft)]">Incidents Reported</p><p className="text-2xl font-bold">{data.incident.total_reported || 0}</p></div>
+        <div className="rounded-2xl border border-[#d4e2eb] bg-white p-4"><p className="text-xs text-[var(--text-soft)]">Money Donated</p><p className="text-2xl font-bold">{formatCurrency(data.donation.total_money_donated)}</p></div>
+        <div className="rounded-2xl border border-[#d4e2eb] bg-white p-4"><p className="text-xs text-[var(--text-soft)]">Volunteer Assignments</p><p className="text-2xl font-bold">{data.volunteer.total_assignments || 0}</p></div>
+        <div className="rounded-2xl border border-[#d4e2eb] bg-white p-4"><p className="text-xs text-[var(--text-soft)]">Rescue Assignments</p><p className="text-2xl font-bold">{data.rescue.total_assignments || 0}</p></div>
+      </section>
+
+      <section className="mt-6 grid gap-4 lg:grid-cols-2">
+        <article className="rounded-3xl border border-[#d4e2eb] bg-white p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="inline-flex items-center gap-2 text-xl font-bold"><Activity size={16} />Account Details</h2>
+            <Link to="/profile/edit" className="text-sm font-semibold text-[var(--brand)]">Edit</Link>
+          </div>
+          <div className="space-y-3 text-sm">
+            <p className="inline-flex items-center gap-2 text-[var(--text-soft)]"><Mail size={14} />{data.user.email || "N/A"}</p>
+            <p className="inline-flex items-center gap-2 text-[var(--text-soft)]"><Phone size={14} />{data.user.phone || "N/A"}</p>
+            <p className="inline-flex items-center gap-2 text-[var(--text-soft)]"><Calendar size={14} />{data.user.date_joined ? new Date(data.user.date_joined).toLocaleDateString() : "N/A"}</p>
+          </div>
+        </article>
+
+        <article className="rounded-3xl border border-[#d4e2eb] bg-white p-6">
+          <h2 className="mb-4 inline-flex items-center gap-2 text-xl font-bold"><AlertCircle size={16} />Recent Incidents</h2>
+          {data.recentIncidents.length === 0 ? <p className="text-sm text-[var(--text-soft)]">No recent incidents.</p> : (
+            <div className="space-y-2">
+              {data.recentIncidents.map((inc) => (
+                <div key={inc.id} className="rounded-xl border border-[#e5edf4] bg-[#f8fcff] p-3">
+                  <p className="font-semibold text-[var(--text)]">{inc.title}</p>
+                  <p className="text-xs text-[var(--text-soft)]">{formatStatus(inc.status)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
+      </section>
+
+      <section className="mt-4 grid gap-4 lg:grid-cols-2">
+        <article className="rounded-3xl border border-[#d4e2eb] bg-white p-6">
+          <h2 className="mb-4 inline-flex items-center gap-2 text-xl font-bold"><DollarSign size={16} />Recent Donations</h2>
+          {data.recentDonations.length === 0 ? <p className="text-sm text-[var(--text-soft)]">No recent donations.</p> : (
+            <div className="space-y-2">
+              {data.recentDonations.map((d) => (
+                <div key={d.id} className="rounded-xl border border-[#e5edf4] bg-[#f8fcff] p-3 text-sm">
+                  <p className="font-semibold">{d.donation_type === "money" ? formatCurrency(d.amount) : `${d.item_name || "Item"} x${d.quantity || 0}`}</p>
+                  <p className="text-xs text-[var(--text-soft)]">{d.incident_title || "General"}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
+
+        <article className="rounded-3xl border border-[#d4e2eb] bg-white p-6">
+          <h2 className="mb-4 inline-flex items-center gap-2 text-xl font-bold"><Users size={16} />Volunteer Contributions</h2>
+          {data.recentVolunteer.length === 0 ? <p className="text-sm text-[var(--text-soft)]">No volunteer contributions.</p> : (
+            <div className="space-y-2">
+              {data.recentVolunteer.map((v) => (
+                <div key={v.id} className="rounded-xl border border-[#e5edf4] bg-[#f8fcff] p-3 text-sm">
+                  <p className="font-semibold">{v.incident_title || "Incident"}</p>
+                  <p className="text-xs text-[var(--text-soft)]">{formatStatus(v.status)}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
+      </section>
     </div>
   );
 }

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { UserPlus } from "lucide-react";
 import axiosInstance from "../../api/Axios";
 
-const DonerRegister = () => {
+export default function DonerRegister() {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem("user"));
+  const user = JSON.parse(localStorage.getItem("user") || "null");
 
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -13,8 +14,7 @@ const DonerRegister = () => {
   useEffect(() => {
     const checkDonor = async () => {
       try {
-        const token = localStorage.getItem("access");
-        if (!token) {
+        if (!localStorage.getItem("access")) {
           navigate("/login");
           return;
         }
@@ -26,8 +26,7 @@ const DonerRegister = () => {
           return;
         }
       } catch (err) {
-        const status = err?.response?.status;
-        if (status === 401 || status === 403) {
+        if (err?.response?.status === 401 || err?.response?.status === 403) {
           navigate("/login");
           return;
         }
@@ -35,7 +34,6 @@ const DonerRegister = () => {
         setChecking(false);
       }
     };
-
     checkDonor();
   }, [navigate]);
 
@@ -43,35 +41,18 @@ const DonerRegister = () => {
     e.preventDefault();
     setLoading(true);
     setError("");
-
-    if (!user) {
-      setError("User not found. Please login again.");
-      setLoading(false);
-      return;
-    }
-
     try {
       await axiosInstance.post("/donations/donor/create/");
-
       localStorage.setItem("has_donor", "true");
       navigate("/donations");
     } catch (err) {
-      const status = err?.response?.status;
       const detail = String(err?.response?.data?.detail || "").toLowerCase();
-
-      if (status === 401 || status === 403 && detail.includes("authentication")) {
-        setError("Please login again.");
-        navigate("/login");
-        return;
-      }
-
-      // Backend returns 403 when donor already exists.
+      const status = err?.response?.status;
       if (status === 403 && detail.includes("already")) {
         localStorage.setItem("has_donor", "true");
         navigate("/donations");
         return;
       }
-
       setError(err?.response?.data?.detail || "Failed to create donor profile.");
     } finally {
       setLoading(false);
@@ -79,56 +60,27 @@ const DonerRegister = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-amber-50 px-4 py-10">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="h-64 w-64 bg-emerald-200/40 rounded-full blur-3xl -top-16 -left-20 absolute" />
-        <div className="h-72 w-72 bg-amber-200/40 rounded-full blur-3xl -bottom-20 -right-16 absolute" />
-      </div>
+    <div className="section-wrap py-24">
+      <div className="mx-auto max-w-xl rounded-[28px] border border-[#d4e2eb] bg-white p-8 text-center shadow-sm">
+        <p className="inline-flex items-center gap-2 rounded-full bg-[#ecfffb] px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-[var(--brand)]">
+          <UserPlus size={14} />
+          Donor Enrollment
+        </p>
+        <h1 className="mt-4 text-3xl font-extrabold text-[var(--text)]">Register as Donor</h1>
+        <p className="mt-2 text-sm text-[var(--text-soft)]">Enroll once to donate across verified incidents.</p>
 
-      <div className="relative w-full max-w-md bg-white/90 backdrop-blur rounded-3xl shadow-xl p-8 border border-emerald-100">
-        <div className="text-center mb-6">
-          <p className="text-xs uppercase tracking-[0.25em] text-emerald-600 font-semibold">
-            Join the Network
-          </p>
-          <h2 className="text-3xl font-extrabold text-gray-900 mt-2">
-            Donor Registration
-          </h2>
-          <p className="text-sm text-gray-500 mt-2">
-            Register once to start supporting verified incidents.
-          </p>
-        </div>
+        {error && <p className="mt-4 rounded-xl bg-[#fff1f1] px-3 py-2 text-sm text-[#b42318]">{error}</p>}
+        {checking && <p className="mt-4 text-sm text-[var(--text-soft)]">Checking donor profile...</p>}
 
-        {error && (
-          <div className="mb-4 p-3 text-sm text-red-700 bg-red-100 rounded-lg">
-            {error}
-          </div>
-        )}
-
-        {checking ? (
-          <div className="text-sm text-slate-500 text-center py-4">
-            Checking donor profile...
-          </div>
-        ) : null}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* User Name (Read Only Display) */}
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4 text-left">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name
-            </label>
-            <input
-              type="text"
-              value={user?.full_name || ""}
-              disabled
-              className="w-full px-4 py-3 border rounded-xl bg-gray-100 text-gray-700"
-            />
+            <label className="mb-1 block text-sm font-semibold text-[var(--text)]">Full Name</label>
+            <input type="text" value={user?.full_name || ""} disabled className="w-full rounded-xl border border-[#d3e2eb] bg-[#f4f8fb] px-4 py-3" />
           </div>
-
-          {/* Submit */}
           <button
             type="submit"
             disabled={loading || checking}
-            className="w-full bg-emerald-600 text-white py-3 rounded-xl font-semibold hover:bg-emerald-700 transition disabled:opacity-50 shadow-sm"
+            className="w-full rounded-xl bg-[var(--brand)] py-3 text-sm font-bold text-white hover:bg-[var(--brand-strong)] disabled:opacity-60"
           >
             {loading ? "Registering..." : "Register as Donor"}
           </button>
@@ -136,6 +88,4 @@ const DonerRegister = () => {
       </div>
     </div>
   );
-};
-
-export default DonerRegister;
+}

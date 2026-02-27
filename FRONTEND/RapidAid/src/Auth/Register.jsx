@@ -2,122 +2,121 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../api/Axios";
 
-const Register = () => {
+const defaultForm = {
+  full_name: "",
+  email: "",
+  phone: "",
+  password: "",
+  role: "citizen",
+};
+
+export default function Register() {
   const navigate = useNavigate();
-
-  const [formData, setFormData] = useState({
-    full_name: "",
-    email: "",
-    phone: "",
-    password: "",
-    role: "citizen", // default role
-  });
-
+  const [formData, setFormData] = useState(defaultForm);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
-
+    setLoading(true);
     try {
       await axiosInstance.post("auth/register/", formData);
-      setSuccess("Registration successful! Redirecting to login...");
-      setTimeout(() => navigate("/login"), 1500);
+      setSuccess("Registration successful. Redirecting to login...");
+      setTimeout(() => navigate("/login"), 1200);
     } catch (err) {
-      // Show detailed backend error if available
-      if (err.response && err.response.data) {
-        setError(JSON.stringify(err.response.data));
-      } else {
-        setError("Registration failed");
-      }
+      setError(
+        typeof err?.response?.data === "object"
+          ? JSON.stringify(err.response.data)
+          : "Registration failed"
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-gray-200">
+    <div className="section-wrap flex min-h-screen items-center justify-center py-20">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm bg-white p-6 rounded-xl shadow-xl"
+        className="w-full max-w-xl rounded-[28px] border border-[#d3e2eb] bg-white p-8 shadow-xl md:p-10"
       >
-        <h2 className="text-2xl font-bold mb-4 text-center">Create Account</h2>
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-[var(--brand)]">Create Account</p>
+        <h1 className="mt-2 text-3xl font-extrabold text-[var(--text)]">Join RapidAid</h1>
+        <p className="mt-2 text-sm text-[var(--text-soft)]">
+          Register as a citizen to report incidents, volunteer, and support relief efforts.
+        </p>
 
-        {error && <p className="text-red-500 text-center mb-2">{error}</p>}
-        {success && <p className="text-green-600 text-center mb-2">{success}</p>}
+        {error && <p className="mt-4 rounded-xl bg-[#fff1f1] px-3 py-2 text-sm text-[#b42318]">{error}</p>}
+        {success && <p className="mt-4 rounded-xl bg-[#ecfff7] px-3 py-2 text-sm text-[#0f7a5e]">{success}</p>}
 
-        <label className="block mb-2">Full Name</label>
-        <input
-          type="text"
-          name="full_name"
-          className="w-full p-2 border rounded mb-3"
-          onChange={handleChange}
-          required
-        />
-
-        <label className="block mb-2">Email</label>
-        <input
-          type="email"
-          name="email"
-          className="w-full p-2 border rounded mb-3"
-          onChange={handleChange}
-          required
-        />
-
-        <label className="block mb-2">Phone</label>
-        <input
-          type="text"
-          name="phone"
-          className="w-full p-2 border rounded mb-3"
-          onChange={handleChange}
-        />
-
-        <label className="block mb-2">Password</label>
-        <input
-          type="password"
-          name="password"
-          className="w-full p-2 border rounded mb-3"
-          onChange={handleChange}
-          required
-        />
-
-        {/* Optional: role selection */}
-        {/* <label className="block mb-2">Role</label>
-        <select
-          name="role"
-          className="w-full p-2 border rounded mb-3"
-          onChange={handleChange}
-        >
-          <option value="citizen">Citizen</option>
-          <option value="admin">Admin</option>
-          <option value="rescue_team">Rescue Team</option>
-          <option value="assessment_team">Assessment Team</option>
-          <option value="donor">Donor</option>
-        </select> */}
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <div className="md:col-span-2">
+            <label className="mb-1 block text-sm font-semibold text-[var(--text)]">Full Name</label>
+            <input
+              type="text"
+              name="full_name"
+              value={formData.full_name}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-[#d0dde7] px-4 py-3 outline-none transition focus:border-[var(--brand)]"
+              required
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-[var(--text)]">Email</label>
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-[#d0dde7] px-4 py-3 outline-none transition focus:border-[var(--brand)]"
+              required
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-semibold text-[var(--text)]">Phone</label>
+            <input
+              type="text"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-[#d0dde7] px-4 py-3 outline-none transition focus:border-[var(--brand)]"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="mb-1 block text-sm font-semibold text-[var(--text)]">Password</label>
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              className="w-full rounded-xl border border-[#d0dde7] px-4 py-3 outline-none transition focus:border-[var(--brand)]"
+              required
+            />
+          </div>
+        </div>
 
         <button
           type="submit"
-          className="w-full bg-green-600 text-white py-2 rounded-md"
+          disabled={loading}
+          className="mt-6 w-full rounded-xl bg-[var(--brand)] py-3 text-sm font-bold text-white transition hover:bg-[var(--brand-strong)] disabled:opacity-60"
         >
-          Register
+          {loading ? "Creating..." : "Create Account"}
         </button>
 
-        <p className="mt-3 text-center">
+        <p className="mt-5 text-center text-sm text-[var(--text-soft)]">
           Already have an account?{" "}
-          <span
-            className="text-blue-600 cursor-pointer"
-            onClick={() => navigate("/login")}
-          >
+          <button type="button" onClick={() => navigate("/login")} className="font-bold text-[var(--brand)]">
             Login
-          </span>
+          </button>
         </p>
       </form>
     </div>
   );
-};
-
-export default Register;
+}

@@ -1,19 +1,19 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Gift, HandCoins } from "lucide-react";
 import axiosInstance from "../../api/Axios";
 
-const DonationForm = () => {
+const initialItem = { item_name: "", quantity: "" };
+
+export default function DonationForm() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const [incidentId, setIncidentId] = useState(
-    searchParams.get("incident") || ""
-  );
+  const [incidentId, setIncidentId] = useState(searchParams.get("incident") || "");
   const [incidents, setIncidents] = useState([]);
   const [donationType, setDonationType] = useState("money");
   const [amount, setAmount] = useState("");
-  const [itemName, setItemName] = useState("");
-  const [quantity, setQuantity] = useState("");
+  const [itemDraft, setItemDraft] = useState(initialItem);
   const [items, setItems] = useState([]);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -34,24 +34,25 @@ const DonationForm = () => {
           : Array.isArray(res.data)
             ? res.data
             : [];
-        const verifiedIncidents = data.filter((item) => {
-          const status = String(item?.status || "").toLowerCase();
-          return item?.is_verified === true || status === "verified";
-        });
-        setIncidents(verifiedIncidents);
-        const verifiedIdSet = new Set(
-          verifiedIncidents.map((item) => String(item.id))
-        );
-        setIncidentId((prev) =>
-          prev && verifiedIdSet.has(String(prev)) ? prev : ""
-        );
-      } catch (err) {
-        console.error(err);
+        const verified = data.filter((item) => String(item?.status || "").toLowerCase() === "verified");
+        setIncidents(verified);
+      } catch {
+        setError("Unable to load incidents for donation.");
       }
     };
 
     fetchIncidents();
   }, [navigate]);
+
+  const handleAddItem = () => {
+    setError("");
+    if (!itemDraft.item_name.trim() || Number(itemDraft.quantity) <= 0) {
+      setError("Please enter a valid item and quantity.");
+      return;
+    }
+    setItems((prev) => [...prev, { item_name: itemDraft.item_name.trim(), quantity: Number(itemDraft.quantity) }]);
+    setItemDraft(initialItem);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -62,43 +63,39 @@ const DonationForm = () => {
       return;
     }
 
-    if (donationType === "money") {
-      if (!amount || Number(amount) <= 0) {
-        setError("Please enter a valid donation amount.");
-        return;
-      }
-    } else {
-      const hasItems = items.length > 0;
-      const hasCurrent =
-        itemName.trim().length > 0 && Number(quantity) > 0;
-      if (!hasItems && !hasCurrent) {
-        setError("Please add at least one item.");
-        return;
-      }
+    if (donationType === "money" && (!amount || Number(amount) < 10)) {
+      setError("Minimum Khalti donation amount is NPR 10.");
+      return;
+    }
+
+    if (donationType === "item" && items.length === 0 && (!itemDraft.item_name || Number(itemDraft.quantity) <= 0)) {
+      setError("Please add at least one item.");
+      return;
     }
 
     setLoading(true);
-
     try {
       if (donationType === "money") {
-        const payload = {
+        const response = await axiosInstance.post("/donations/khalti/initiate/", {
           incident: incidentId,
-          donation_type: donationType,
           is_anonymous: isAnonymous,
           amount,
-        };
-        await axiosInstance.post("/donations/donate/", payload);
+        });
+
+        const paymentUrl = response?.data?.payment_url;
+        if (!paymentUrl) {
+          throw new Error("Khalti payment URL not returned");
+        }
+        window.location.href = paymentUrl;
+        return;
       } else {
-        const itemList = [...items];
-        if (itemName.trim() && Number(quantity) > 0) {
-          itemList.push({
-            item_name: itemName.trim(),
-            quantity: Number(quantity),
-          });
+        const queue = [...items];
+        if (itemDraft.item_name.trim() && Number(itemDraft.quantity) > 0) {
+          queue.push({ item_name: itemDraft.item_name.trim(), quantity: Number(itemDraft.quantity) });
         }
 
         await Promise.all(
-          itemList.map((item) =>
+          queue.map((item) =>
             axiosInstance.post("/donations/donate/", {
               incident: incidentId,
               donation_type: "item",
@@ -112,183 +109,114 @@ const DonationForm = () => {
 
       navigate("/donations");
     } catch (err) {
-      console.error(err);
-      setError(
-        err.response?.data?.detail ||
-          "Failed to process donation. Please try again."
-      );
+      setError(err?.response?.data?.detail || "Failed to process donation. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddItem = () => {
-    setError("");
-    if (!itemName.trim() || Number(quantity) <= 0) {
-      setError("Please enter a valid item and quantity.");
-      return;
-    }
-    setItems((prev) => [
-      ...prev,
-      { item_name: itemName.trim(), quantity: Number(quantity) },
-    ]);
-    setItemName("");
-    setQuantity("");
-  };
-
-  const handleRemoveItem = (index) => {
-    setItems((prev) => prev.filter((_, i) => i !== index));
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-50 via-white to-emerald-50 px-4 py-10">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="h-72 w-72 bg-sky-200/40 rounded-full blur-3xl -top-24 -right-10 absolute" />
-        <div className="h-72 w-72 bg-emerald-200/40 rounded-full blur-3xl -bottom-24 -left-10 absolute" />
-      </div>
-
-      <div className="relative w-full max-w-xl bg-white/90 backdrop-blur rounded-3xl shadow-xl p-8 border border-sky-100">
-        <div className="text-center mb-6">
-          <p className="text-xs uppercase tracking-[0.25em] text-sky-600 font-semibold">
-            RapidAid
+    <div className="section-wrap py-24">
+      <div className="grid gap-5 lg:grid-cols-[1.1fr_1.5fr]">
+        <aside className="rounded-[28px] border border-[#cddde7] bg-[#0f2a3f] p-8 text-white">
+          <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em]">
+            <HandCoins size={14} />
+            Contribution Flow
           </p>
-          <h2 className="text-3xl font-extrabold text-gray-900 mt-2">
-            Make a Donation
-          </h2>
-          <p className="text-sm text-gray-500 mt-2">
-            Choose money or items and support a verified incident.
+          <h1 className="mt-5 text-4xl font-extrabold leading-tight">Make a Donation</h1>
+          <p className="mt-3 text-sm text-[#c8d7e4]">
+            Support verified incidents with direct monetary aid or essential items.
           </p>
-        </div>
+        </aside>
 
-        {error && (
-          <div className="mb-4 p-3 text-sm text-red-700 bg-red-100 rounded-lg">
-            {error}
-          </div>
-        )}
+        <form onSubmit={handleSubmit} className="rounded-[28px] border border-[#d4e2eb] bg-white p-7 md:p-8">
+          {error && <p className="mb-4 rounded-xl bg-[#fff1f1] px-3 py-2 text-sm text-[#b42318]">{error}</p>}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Incident */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Incident
-            </label>
-            <select
-              value={incidentId}
-              onChange={(e) => setIncidentId(e.target.value)}
-              className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
-              required
-            >
-              <option value="">Select an incident</option>
-              {incidents.map((incident) => (
-                <option key={incident.id} value={incident.id}>
-                  {incident.title}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Donation Type
-            </label>
-            <select
-              value={donationType}
-              onChange={(e) => setDonationType(e.target.value)}
-              className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
-            >
-              <option value="money">Money</option>
-              <option value="item">Item</option>
-            </select>
-          </div>
-
-          {donationType === "money" ? (
+          <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Donation Amount (NPR)
-              </label>
-              <input
-                type="number"
-                min="1"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+              <label className="mb-1 block text-sm font-semibold text-[var(--text)]">Incident</label>
+              <select
+                value={incidentId}
+                onChange={(e) => setIncidentId(e.target.value)}
+                className="w-full rounded-xl border border-[#cfdee8] px-4 py-3 outline-none focus:border-[var(--brand)]"
                 required
-                className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                placeholder="Enter amount"
-              />
+              >
+                <option value="">Select an incident</option>
+                {incidents.map((incident) => (
+                  <option key={incident.id} value={incident.id}>{incident.title}</option>
+                ))}
+              </select>
             </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Item Name
-                  </label>
+
+            <div>
+              <label className="mb-1 block text-sm font-semibold text-[var(--text)]">Donation Type</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDonationType("money")}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold ${donationType === "money" ? "bg-[var(--brand)] text-white" : "bg-[#f3f8fc] text-[var(--text)]"}`}
+                >
+                  Money
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDonationType("item")}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold ${donationType === "item" ? "bg-[var(--brand)] text-white" : "bg-[#f3f8fc] text-[var(--text)]"}`}
+                >
+                  Item
+                </button>
+              </div>
+            </div>
+
+            {donationType === "money" ? (
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-[var(--text)]">Amount</label>
+                <input
+                  type="number"
+                  min="10"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  className="w-full rounded-xl border border-[#cfdee8] px-4 py-3 outline-none focus:border-[var(--brand)]"
+                  placeholder="Enter donation amount"
+                />
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-3 md:grid-cols-2">
                   <input
                     type="text"
-                    value={itemName}
-                    onChange={(e) => setItemName(e.target.value)}
-                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                    placeholder="e.g. Blankets"
+                    value={itemDraft.item_name}
+                    onChange={(e) => setItemDraft((prev) => ({ ...prev, item_name: e.target.value }))}
+                    className="w-full rounded-xl border border-[#cfdee8] px-4 py-3 outline-none focus:border-[var(--brand)]"
+                    placeholder="Item name"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Quantity
-                  </label>
                   <input
                     type="number"
                     min="1"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                    placeholder="Enter quantity"
+                    value={itemDraft.quantity}
+                    onChange={(e) => setItemDraft((prev) => ({ ...prev, quantity: e.target.value }))}
+                    className="w-full rounded-xl border border-[#cfdee8] px-4 py-3 outline-none focus:border-[var(--brand)]"
+                    placeholder="Quantity"
                   />
                 </div>
-              </div>
+                <button type="button" onClick={handleAddItem} className="rounded-xl bg-[#f3f8fc] px-4 py-2 text-sm font-semibold text-[var(--text)]">
+                  Add Item
+                </button>
+                {items.length > 0 && (
+                  <div className="space-y-2 rounded-2xl border border-[#dce8f1] bg-[#f8fcff] p-3">
+                    {items.map((item, idx) => (
+                      <div key={`${item.item_name}-${idx}`} className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm">
+                        <span>{item.item_name} ({item.quantity})</span>
+                        <button type="button" className="text-[#b42318]" onClick={() => setItems((prev) => prev.filter((_, i) => i !== idx))}>Remove</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
 
-              <button
-                type="button"
-                onClick={handleAddItem}
-                className="w-full bg-sky-50 text-sky-700 py-2.5 rounded-xl font-semibold hover:bg-sky-100 transition border border-sky-100"
-              >
-                Add Item
-              </button>
-
-              {items.length > 0 && (
-                <div className="border rounded-2xl p-4 space-y-2 bg-slate-50">
-                  {items.map((item, index) => (
-                    <div
-                      key={`${item.item_name}-${index}`}
-                      className="flex items-center justify-between text-sm bg-white rounded-xl px-3 py-2 border"
-                    >
-                      <span>
-                        {item.item_name} ({item.quantity})
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveItem(index)}
-                        className="text-red-600 hover:underline"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-          <div className="flex items-center gap-2">
-            <input
-              id="isAnonymous"
-              type="checkbox"
-              checked={isAnonymous}
-              onChange={(e) => setIsAnonymous(e.target.checked)}
-              className="h-4 w-4"
-            />
-            <label htmlFor="isAnonymous" className="text-sm text-gray-600">
+            <label className="inline-flex items-center gap-2 text-sm text-[var(--text-soft)]">
+              <input type="checkbox" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} />
               Donate anonymously
             </label>
           </div>
@@ -296,14 +224,13 @@ const DonationForm = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-sky-600 text-white py-3 rounded-xl font-semibold hover:bg-sky-700 transition disabled:opacity-50 shadow-sm"
+            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-3 text-sm font-bold text-white hover:bg-[var(--brand-strong)] disabled:opacity-60"
           >
-            {loading ? "Processing..." : "Donate Now"}
+            <Gift size={14} />
+            {loading ? "Processing..." : donationType === "money" ? "Pay with Khalti" : "Submit Donation"}
           </button>
         </form>
       </div>
     </div>
   );
-};
-
-export default DonationForm;
+}

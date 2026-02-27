@@ -7,76 +7,43 @@ export default function AdminUsers() {
   const [error, setError] = useState("");
   const [users, setUsers] = useState([]);
 
-  const refreshData = async () => {
-    try {
-      setError("");
-      const res = await axiosInstance.get("auth/admin/users/");
-      setUsers(parseList(res.data));
-    } catch (err) {
-      setError(err.response?.data?.detail || "Failed to load users.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const refreshData = async () => {
+      try {
+        setError("");
+        const res = await axiosInstance.get("auth/admin/users/");
+        setUsers(parseList(res.data));
+      } catch (err) { setError(err?.response?.data?.detail || "Failed to load users."); }
+      finally { setLoading(false); }
+    };
     refreshData();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center">
-        <p className="text-slate-600 font-medium">Loading users...</p>
-      </div>
-    );
-  }
+  if (loading) return <div className="rounded-3xl border border-[#d4e2eb] bg-white p-8 text-sm text-[var(--text-soft)]">Loading users...</div>;
 
   return (
     <div className="space-y-5">
-      <div>
-        <p className="text-xs tracking-[0.22em] uppercase text-slate-500 font-semibold">
-          Users
-        </p>
-        <h1 className="text-2xl font-bold text-slate-900 mt-1">
-          User Directory
-        </h1>
-        <p className="text-sm text-slate-500 mt-2">
-          View admin, rescue, assessment, and citizen accounts.
-        </p>
-      </div>
+      <section className="rounded-3xl border border-[#d4e2eb] bg-white p-6">
+        <p className="text-xs uppercase tracking-[0.2em] text-[var(--text-soft)]">Users</p>
+        <h1 className="mt-2 text-3xl font-extrabold text-[var(--text)]">User Directory</h1>
+      </section>
+      {error && <p className="rounded-xl bg-[#fff1f1] px-3 py-2 text-sm text-[#b42318]">{error}</p>}
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-          {error}
-        </div>
-      )}
-
-      <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-200">
-        {users.length === 0 && (
-          <p className="px-5 py-6 text-sm text-slate-500">
-            No users available.
-          </p>
-        )}
-
+      <section className="rounded-3xl border border-[#d4e2eb] bg-white">
+        {users.length === 0 && <p className="px-5 py-6 text-sm text-[var(--text-soft)]">No users available.</p>}
         {users.map((user) => (
-          <div key={user.id} className="px-5 py-4">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <article key={user.id} className="border-b border-[#ecf2f7] px-5 py-4 last:border-b-0">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-base font-semibold text-slate-900">
-                  {user.full_name || "Unknown User"}
-                </p>
-                <p className="text-sm text-slate-500 mt-1">{user.email}</p>
-                <p className="text-xs text-slate-400 mt-1">
-                  Joined: {formatDate(user.date_joined)}
-                </p>
+                <p className="text-lg font-semibold text-[var(--text)]">{user.full_name || "Unknown User"}</p>
+                <p className="text-sm text-[var(--text-soft)]">{user.email}</p>
+                <p className="text-xs text-[var(--text-soft)]">Joined: {formatDate(user.date_joined)}</p>
               </div>
-              <div className="text-xs text-slate-600 font-semibold uppercase tracking-wider">
-                {user.role_display || user.role || "unknown"}
-              </div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-soft)]">{user.role_display || user.role || "unknown"}</div>
             </div>
-          </div>
+          </article>
         ))}
-      </div>
+      </section>
     </div>
   );
 }

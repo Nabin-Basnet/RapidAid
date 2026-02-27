@@ -1,77 +1,98 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, Heart, Shield, AlarmClock } from "lucide-react";
+import { ArrowRight, Siren, Shield, HandHeart, Layers3 } from "lucide-react";
+
+const features = [
+  {
+    title: "Incident Intelligence",
+    description: "Capture emergency signals with context, media evidence, and timeline-ready metadata.",
+    icon: Siren,
+    tone: "from-[#fef2f2] to-[#fff8f6]",
+  },
+  {
+    title: "Coordinated Response",
+    description: "Route verified incidents to response teams and keep communities updated with clear status transitions.",
+    icon: Shield,
+    tone: "from-[#ecfdf8] to-[#f6fffb]",
+  },
+  {
+    title: "Transparent Support",
+    description: "Track donations and public contribution records with accountable, event-level visibility.",
+    icon: HandHeart,
+    tone: "from-[#fff8eb] to-[#fffdf6]",
+  },
+];
 
 export default function Home() {
   return (
-    <div className="pt-20 w-full">
-      {/* Hero Section */}
-      <section className="bg-blue-50 w-full py-24 px-6 md:px-12 text-center">
-        <h1 className="text-4xl md:text-6xl font-bold text-blue-700 mb-6">
-          RapidAid – Fast & Reliable Disaster Response
-        </h1>
-        <p className="text-lg md:text-xl text-gray-700 max-w-3xl mx-auto mb-8">
-          Report emergencies, track rescue operations, donate resources, and help communities recover faster.
-        </p>
+    <div className="pb-10">
+      <section className="section-wrap pt-28">
+        <div className="glass-card relative overflow-hidden rounded-[28px] px-6 py-12 md:px-12">
+          <div className="absolute -right-12 -top-12 h-44 w-44 rounded-full bg-[#c8fff1]/70 blur-2xl" />
+          <div className="absolute -bottom-14 -left-10 h-44 w-44 rounded-full bg-[#ffe0d2]/70 blur-2xl" />
 
-        <div className="flex justify-center gap-4 mt-4">
-          <Link
-            to="/report"
-            className="px-6 py-3 bg-blue-600 text-white rounded-xl shadow hover:bg-blue-700 flex items-center gap-2 transition"
-          >
-            Report Incident <ArrowRight size={18} />
-          </Link>
+          <div className="relative z-10 max-w-3xl fade-in-up">
+            <p className="inline-flex items-center gap-2 rounded-full border border-[#b7e9df] bg-[#ebfffa] px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-[var(--brand)]">
+              <Layers3 size={14} />
+              RapidAid Command UI
+            </p>
+            <h1 className="mt-5 text-4xl font-extrabold leading-tight text-[var(--text)] md:text-6xl">
+              Crisis Response, Designed for Speed and Trust
+            </h1>
+            <p className="mt-5 max-w-2xl text-base text-[var(--text-soft)] md:text-lg">
+              Report incidents, verify events, coordinate rescue operations, and maintain transparent
+              donation workflows in one integrated platform.
+            </p>
 
-          <Link
-            to="/incidents"
-            className="px-6 py-3 bg-white border border-blue-600 text-blue-600 rounded-xl hover:bg-blue-100 transition"
-          >
-            View Incidents
-          </Link>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                to="/report"
+                className="inline-flex items-center gap-2 rounded-2xl bg-[var(--brand)] px-6 py-3 text-sm font-bold text-white transition hover:bg-[var(--brand-strong)]"
+              >
+                Report Incident
+                <ArrowRight size={16} />
+              </Link>
+              <Link
+                to="/incidents"
+                className="inline-flex items-center gap-2 rounded-2xl border border-[#cddae4] bg-white px-6 py-3 text-sm font-bold text-[var(--text)] transition hover:border-[var(--brand)]"
+              >
+                Explore Incidents
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="max-w-7xl mx-auto py-16 px-6 grid md:grid-cols-3 gap-10">
-        <div className="bg-white shadow-md p-8 rounded-2xl text-center">
-          <AlarmClock className="mx-auto text-blue-600" size={48} />
-          <h3 className="text-2xl font-semibold mt-4">Real-Time Reporting</h3>
-          <p className="text-gray-600 mt-2">
-            Submit incidents instantly and notify authorities without delay.
-          </p>
-        </div>
-
-        <div className="bg-white shadow-md p-8 rounded-2xl text-center">
-          <Shield className="mx-auto text-green-600" size={48} />
-          <h3 className="text-2xl font-semibold mt-4">Rescue Coordination</h3>
-          <p className="text-gray-600 mt-2">
-            Rescue teams receive assignments and update progress in real-time.
-          </p>
-        </div>
-
-        <div className="bg-white shadow-md p-8 rounded-2xl text-center">
-          <Heart className="mx-auto text-red-600" size={48} />
-          <h3 className="text-2xl font-semibold mt-4">Transparent Donations</h3>
-          <p className="text-gray-600 mt-2">
-            Donate items or funds and track how your contribution is used.
-          </p>
-        </div>
+      <section className="section-wrap mt-10 grid gap-5 md:grid-cols-3">
+        {features.map((feature, i) => (
+          <div
+            key={feature.title}
+            className={`fade-in-up rounded-3xl border border-[#d8e5ee] bg-gradient-to-br ${feature.tone} p-6`}
+            style={{ animationDelay: `${i * 0.08}s` }}
+          >
+            <div className="mb-4 inline-flex rounded-xl bg-white p-2 text-[var(--brand)]">
+              <feature.icon size={20} />
+            </div>
+            <h3 className="text-2xl font-bold text-[var(--text)]">{feature.title}</h3>
+            <p className="mt-3 text-sm leading-relaxed text-[var(--text-soft)]">{feature.description}</p>
+          </div>
+        ))}
       </section>
 
-      {/* CTA Section */}
-      <section className="w-full bg-blue-600 py-16 text-center text-white px-6">
-        <h2 className="text-3xl md:text-4xl font-bold">
-          Join Hands to Save Lives
-        </h2>
-        <p className="text-lg mt-3 max-w-2xl mx-auto">
-          Every second counts. Your report, your donation, or your action can make a huge difference.
-        </p>
-
-        <Link
-          to="/donations"
-          className="inline-block mt-6 px-8 py-3 bg-white text-blue-700 font-semibold rounded-xl shadow hover:bg-gray-100 transition"
-        >
-          Donate Now
-        </Link>
+      <section className="section-wrap mt-10">
+        <div className="rounded-[28px] border border-[#c8dce7] bg-[#0d2338] px-8 py-10 text-white md:px-12">
+          <h2 className="text-3xl font-bold md:text-4xl">Every action leaves a meaningful trace.</h2>
+          <p className="mt-3 max-w-2xl text-sm text-[#c9d7e4] md:text-base">
+            RapidAid is built to support urgent execution and long-term public accountability.
+            Join the network as a reporter, responder, volunteer, or donor.
+          </p>
+          <Link
+            to="/donations"
+            className="mt-7 inline-flex items-center gap-2 rounded-2xl bg-[var(--accent)] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#ea5d2b]"
+          >
+            Support Verified Incidents
+            <ArrowRight size={16} />
+          </Link>
+        </div>
       </section>
     </div>
   );

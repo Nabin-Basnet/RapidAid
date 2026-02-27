@@ -1,19 +1,28 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Menu, X, User, LogOut } from "lucide-react";
+import { Menu, X, User, LogOut, Shield, HeartHandshake } from "lucide-react";
 import { getUser, isAuthenticated, logoutUser } from "../Auth/utils";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  const [user, setUser] = useState(() => getUser());
 
   const navigate = useNavigate();
   const location = useLocation();
   const profileRef = useRef(null);
 
   const loggedIn = isAuthenticated();
-  const user = getUser();
   const isAdmin = user?.role === "admin";
+  const profilePhotoUrl = user?.profile_photo_url || user?.profile_photo || "";
+  const initials = (user?.full_name || "U")
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase();
 
   const navItems = [
     { name: "Home", path: "/" },
@@ -32,8 +41,14 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  useEffect(() => {
+    setUser(getUser());
+    setAvatarFailed(false);
+  }, [location.pathname]);
+
   const handleLogout = async () => {
     await logoutUser();
+    setUser(null);
     setProfileOpen(false);
     navigate("/");
   };
@@ -56,15 +71,18 @@ export default function Navbar() {
   /* ---------------------------------- */
 
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 backdrop-blur bg-white/80 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-
-        {/* Logo */}
-        <Link
-          to="/"
-          className="text-2xl font-bold text-blue-600 tracking-tight"
-        >
-          RapidAid
+    <nav className="fixed top-0 left-0 w-full z-50 border-b border-white/40 bg-white/70 backdrop-blur-xl">
+      <div className="section-wrap flex items-center justify-between py-3">
+        <Link to="/" className="inline-flex items-center gap-2">
+          <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[var(--brand)] text-white shadow-md">
+            <Shield size={18} />
+          </span>
+          <span className="flex flex-col leading-tight">
+            <span className="text-xl font-extrabold text-[var(--text)]">RapidAid</span>
+            <span className="text-[10px] uppercase tracking-[0.24em] text-[var(--text-soft)]">
+              Response Network
+            </span>
+          </span>
         </Link>
 
         {/* Desktop Nav */}
@@ -76,14 +94,14 @@ export default function Navbar() {
               className={`relative text-sm font-medium transition
                 ${
                   location.pathname === item.path
-                    ? "text-blue-600"
-                    : "text-gray-700 hover:text-blue-600"
+                    ? "text-[var(--brand)]"
+                    : "text-[var(--text-soft)] hover:text-[var(--text)]"
                 }
               `}
             >
               {item.name}
               {location.pathname === item.path && (
-                <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-blue-600 rounded-full" />
+                <span className="absolute -bottom-1 left-0 h-0.5 w-full rounded-full bg-[var(--brand)]" />
               )}
             </Link>
           ))}
@@ -91,15 +109,16 @@ export default function Navbar() {
           {/* Donate Button (Desktop) */}
           <button
             onClick={handleDonateClick}
-            className="relative text-sm font-medium text-gray-700 hover:text-blue-600 transition"
+            className="inline-flex items-center gap-2 rounded-full border border-[#f4bead] bg-[#fff4ef] px-4 py-2 text-sm font-semibold text-[#9c3412] transition hover:bg-[#ffe8de]"
           >
+            <HeartHandshake size={16} />
             Donate
           </button>
 
           {!loggedIn ? (
             <Link
               to="/login"
-              className="px-5 py-2 text-sm font-semibold bg-blue-600 text-white rounded-full shadow hover:bg-blue-700 transition"
+              className="rounded-full bg-[var(--brand)] px-5 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-[var(--brand-strong)]"
             >
               Login
             </Link>
@@ -107,18 +126,27 @@ export default function Navbar() {
             <div className="relative" ref={profileRef}>
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center hover:ring-2 hover:ring-blue-400 transition"
+                className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl border border-[#d0dfe8] bg-white text-[var(--text)] transition hover:border-[var(--brand)]"
               >
-                <User size={20} />
+                {profilePhotoUrl && !avatarFailed ? (
+                  <img
+                    src={profilePhotoUrl}
+                    alt={`${user?.full_name || "User"} avatar`}
+                    className="h-full w-full object-cover"
+                    onError={() => setAvatarFailed(true)}
+                  />
+                ) : (
+                  <span className="text-sm font-bold">{initials}</span>
+                )}
               </button>
 
               {profileOpen && (
-                <div className="absolute right-0 mt-3 w-48 bg-white rounded-2xl shadow-xl overflow-hidden">
-                  <div className="px-4 py-3 border-b border-gray-100">
-                    <p className="text-sm font-semibold text-gray-800">
+                <div className="absolute right-0 mt-3 w-56 overflow-hidden rounded-2xl border border-[#dae6ee] bg-white shadow-xl">
+                  <div className="border-b border-[#edf2f6] px-4 py-3">
+                    <p className="text-sm font-semibold text-[var(--text)]">
                       {user?.full_name || "User"}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-[var(--text-soft)]">
                       {user?.email || ""}
                     </p>
                   </div>
@@ -126,7 +154,7 @@ export default function Navbar() {
                   <Link
                     to="/profile"
                     onClick={() => setProfileOpen(false)}
-                    className="flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
+                    className="flex items-center gap-2 px-4 py-3 text-sm text-[var(--text-soft)] transition hover:bg-[#f5faf9] hover:text-[var(--brand)]"
                   >
                     <User size={16} /> My Profile
                   </Link>
@@ -135,7 +163,7 @@ export default function Navbar() {
                     <Link
                       to="/admin"
                       onClick={() => setProfileOpen(false)}
-                      className="flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
+                      className="flex items-center gap-2 px-4 py-3 text-sm text-[var(--text-soft)] transition hover:bg-[#f5faf9] hover:text-[var(--brand)]"
                     >
                       <User size={16} /> Admin Dashboard
                     </Link>
@@ -145,7 +173,7 @@ export default function Navbar() {
                     <Link
                       to="/rescue"
                       onClick={() => setProfileOpen(false)}
-                      className="flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
+                      className="flex items-center gap-2 px-4 py-3 text-sm text-[var(--text-soft)] transition hover:bg-[#f5faf9] hover:text-[var(--brand)]"
                     >
                       <User size={16} /> Rescue Hub
                     </Link>
@@ -155,7 +183,7 @@ export default function Navbar() {
                     <Link
                       to="/assessments"
                       onClick={() => setProfileOpen(false)}
-                      className="flex items-center gap-2 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50"
+                      className="flex items-center gap-2 px-4 py-3 text-sm text-[var(--text-soft)] transition hover:bg-[#f5faf9] hover:text-[var(--brand)]"
                     >
                       <User size={16} /> Assessment Hub
                     </Link>
@@ -163,7 +191,7 @@ export default function Navbar() {
 
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50"
+                    className="flex w-full items-center gap-2 px-4 py-3 text-sm text-[#b42318] transition hover:bg-[#fff1f1]"
                   >
                     <LogOut size={16} /> Logout
                   </button>
@@ -176,7 +204,7 @@ export default function Navbar() {
         {/* Mobile Toggle */}
         <button
           onClick={() => setOpen(!open)}
-          className="md:hidden text-gray-700"
+          className="rounded-xl border border-[#d6e2ea] bg-white p-2 text-[var(--text)] md:hidden"
         >
           {open ? <X size={26} /> : <Menu size={26} />}
         </button>
@@ -184,13 +212,13 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       {open && (
-        <div className="md:hidden bg-white shadow-xl px-6 py-6 space-y-4">
+        <div className="section-wrap mb-3 space-y-4 rounded-2xl border border-[#dbe6ee] bg-white px-6 py-6 shadow-xl md:hidden">
           {navItems.map((item) => (
             <Link
               key={item.name}
               to={item.path}
               onClick={() => setOpen(false)}
-              className="block text-gray-800 text-base font-medium hover:text-blue-600"
+              className="block text-base font-medium text-[var(--text)]"
             >
               {item.name}
             </Link>
@@ -202,7 +230,7 @@ export default function Navbar() {
               setOpen(false);
               handleDonateClick();
             }}
-            className="block w-full text-left text-gray-800 text-base font-medium hover:text-blue-600"
+            className="block w-full rounded-xl bg-[#fff3ec] px-3 py-2 text-left text-base font-semibold text-[#a93f1b]"
           >
             Donate
           </button>
@@ -212,7 +240,7 @@ export default function Navbar() {
               <Link
                 to="/login"
                 onClick={() => setOpen(false)}
-                className="block w-full text-center py-2 bg-blue-600 text-white rounded-xl font-semibold"
+                className="block w-full rounded-xl bg-[var(--brand)] py-2 text-center font-semibold text-white"
               >
                 Login
               </Link>
@@ -221,7 +249,7 @@ export default function Navbar() {
                 <Link
                   to="/profile"
                   onClick={() => setOpen(false)}
-                  className="block text-center py-2 mb-2 border border-blue-600 text-blue-600 rounded-xl font-semibold"
+                  className="mb-2 block rounded-xl border border-[#c8dbe8] py-2 text-center font-semibold text-[var(--text)]"
                 >
                   My Profile
                 </Link>
@@ -230,7 +258,7 @@ export default function Navbar() {
                   <Link
                     to="/admin"
                     onClick={() => setOpen(false)}
-                    className="block text-center py-2 mb-2 border border-gray-800 text-gray-800 rounded-xl font-semibold"
+                    className="mb-2 block rounded-xl border border-[#c8dbe8] py-2 text-center font-semibold text-[var(--text)]"
                   >
                     Admin Dashboard
                   </Link>
@@ -240,7 +268,7 @@ export default function Navbar() {
                   <Link
                     to="/rescue"
                     onClick={() => setOpen(false)}
-                    className="block text-center py-2 mb-2 border border-indigo-600 text-indigo-600 rounded-xl font-semibold"
+                    className="mb-2 block rounded-xl border border-[#c8dbe8] py-2 text-center font-semibold text-[var(--text)]"
                   >
                     Rescue Hub
                   </Link>
@@ -250,7 +278,7 @@ export default function Navbar() {
                   <Link
                     to="/assessments"
                     onClick={() => setOpen(false)}
-                    className="block text-center py-2 mb-2 border border-emerald-600 text-emerald-600 rounded-xl font-semibold"
+                    className="mb-2 block rounded-xl border border-[#c8dbe8] py-2 text-center font-semibold text-[var(--text)]"
                   >
                     Assessment Hub
                   </Link>
@@ -258,7 +286,7 @@ export default function Navbar() {
 
                 <button
                   onClick={handleLogout}
-                  className="block w-full py-2 bg-red-500 text-white rounded-xl font-semibold"
+                  className="block w-full rounded-xl bg-[#b42318] py-2 font-semibold text-white"
                 >
                   Logout
                 </button>

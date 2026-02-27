@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { ShieldCheck, Wallet, Package, BanknoteArrowDown, Landmark } from "lucide-react";
 import axiosInstance from "../api/Axios";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
@@ -8,214 +9,140 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 });
 
-const formatDateTime = (value) => {
-  if (!value) {
-    return "N/A";
-  }
-  return new Date(value).toLocaleString();
-};
-
 const normalizeList = (payload) => {
-  if (Array.isArray(payload?.results)) {
-    return payload.results;
-  }
-  if (Array.isArray(payload)) {
-    return payload;
-  }
+  if (Array.isArray(payload?.results)) return payload.results;
+  if (Array.isArray(payload)) return payload;
   return [];
 };
 
-const Transparency = () => {
+const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : "N/A");
+
+export default function Transparency() {
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const fetchTransparencyData = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         setError("");
         const res = await axiosInstance.get("/donations/list/");
-        const donationList = normalizeList(res.data);
-        setDonations(donationList);
+        setDonations(normalizeList(res.data));
       } catch (err) {
-        const detail =
-          err?.response?.data?.detail ||
-          "Transparency data could not be loaded right now.";
-        setError(detail);
+        setError(err?.response?.data?.detail || "Transparency data could not be loaded right now.");
       } finally {
         setLoading(false);
       }
     };
-
-    fetchTransparencyData();
+    fetchData();
   }, []);
 
   const metrics = useMemo(() => {
-    const totalDonations = donations.length;
-    const moneyDonations = donations.filter(
-      (entry) => String(entry?.donation_type).toLowerCase() === "money"
-    );
-    const itemDonations = donations.filter(
-      (entry) => String(entry?.donation_type).toLowerCase() === "item"
-    );
-
-    const totalAmount = moneyDonations.reduce((sum, donation) => {
-      const amount = Number(donation?.amount || 0);
-      return sum + (Number.isFinite(amount) ? amount : 0);
-    }, 0);
-
+    const money = donations.filter((d) => String(d?.donation_type).toLowerCase() === "money");
+    const items = donations.filter((d) => String(d?.donation_type).toLowerCase() === "item");
+    const totalAmount = money.reduce((sum, d) => sum + Number(d?.amount || 0), 0);
     return {
-      totalDonations,
+      total: donations.length,
+      moneyCount: money.length,
+      itemCount: items.length,
       totalAmount,
-      moneyCount: moneyDonations.length,
-      itemCount: itemDonations.length,
+      anonymousCount: donations.filter((d) => d?.is_anonymous).length,
     };
   }, [donations]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-cyan-50 pt-24 pb-16 px-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <p className="text-xs uppercase tracking-[0.25em] text-cyan-700 font-semibold">
-            Transparency
-          </p>
-          <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 mt-2">
-            Donation Accountability Dashboard
-          </h1>
-          <p className="text-sm md:text-base text-slate-600 mt-3 max-w-3xl">
-            View donation flow across incidents. Every entry below is pulled
-            directly from the live donations API.
+    <div className="section-wrap pb-12 pt-24">
+      <div className="rounded-[28px] border border-[#cddde7] bg-[#0f2a3f] p-7 text-white md:p-9">
+        <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.22em]">
+          <ShieldCheck size={14} />
+          Public Accountability
+        </p>
+        <h1 className="mt-4 text-4xl font-extrabold">Transparency Ledger</h1>
+        <p className="mt-2 max-w-3xl text-sm text-[#c8d7e4]">
+          Every donation entry below is pulled from live platform records to keep support activity auditable and visible.
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="mt-6 rounded-3xl border border-[#d4e2eb] bg-white p-8 text-sm text-[var(--text-soft)]">
+          Loading transparency records...
+        </div>
+      ) : error ? (
+        <div className="mt-6 rounded-3xl border border-[#fecaca] bg-[#fff1f1] p-8 text-sm text-[#b42318]">
+          <p className="font-semibold">Unable to load transparency data.</p>
+          <p className="mt-2">{error}</p>
+          <p className="mt-2">
+            If this is an authentication issue, <Link to="/login" className="font-semibold underline">log in here</Link>.
           </p>
         </div>
-
-        {loading ? (
-          <div className="bg-white border rounded-2xl p-8 shadow-sm text-slate-600">
-            Loading transparency data...
-          </div>
-        ) : error ? (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-red-700">
-            <p className="font-semibold">Unable to load transparency data.</p>
-            <p className="text-sm mt-2">{error}</p>
-            <p className="text-sm mt-2">
-              If this is an authentication error,{" "}
-              <Link to="/login" className="underline font-medium">
-                log in here
-              </Link>
-              .
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-              <div className="bg-white border rounded-2xl p-5 shadow-sm">
-                <p className="text-xs uppercase tracking-wide text-slate-500">
-                  Total Donations
-                </p>
-                <p className="text-2xl font-bold text-slate-900 mt-2">
-                  {metrics.totalDonations}
-                </p>
-              </div>
-              <div className="bg-white border rounded-2xl p-5 shadow-sm">
-                <p className="text-xs uppercase tracking-wide text-slate-500">
-                  Money Donations
-                </p>
-                <p className="text-2xl font-bold text-emerald-700 mt-2">
-                  {metrics.moneyCount}
-                </p>
-              </div>
-              <div className="bg-white border rounded-2xl p-5 shadow-sm">
-                <p className="text-xs uppercase tracking-wide text-slate-500">
-                  Item Donations
-                </p>
-                <p className="text-2xl font-bold text-cyan-700 mt-2">
-                  {metrics.itemCount}
-                </p>
-              </div>
-              <div className="bg-white border rounded-2xl p-5 shadow-sm">
-                <p className="text-xs uppercase tracking-wide text-slate-500">
-                  Total Amount
-                </p>
-                <p className="text-2xl font-bold text-slate-900 mt-2">
-                  {currencyFormatter.format(metrics.totalAmount)}
-                </p>
-              </div>
+      ) : (
+        <>
+          <section className="mt-6 grid gap-4 md:grid-cols-5">
+            <div className="rounded-2xl border border-[#d4e2eb] bg-white p-4">
+              <p className="inline-flex items-center gap-2 text-xs uppercase tracking-wider text-[var(--text-soft)]"><Wallet size={14} />Total Entries</p>
+              <p className="mt-2 text-2xl font-bold text-[var(--text)]">{metrics.total}</p>
             </div>
-
-            <div className="bg-white border rounded-2xl shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b bg-slate-50">
-                <h2 className="text-lg font-semibold text-slate-800">
-                  Recent Donation Entries
-                </h2>
-              </div>
-
-              {donations.length === 0 ? (
-                <div className="p-8 text-slate-500 text-sm">
-                  No donation entries found yet.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-slate-50 text-slate-600">
-                      <tr>
-                        <th className="text-left font-semibold px-5 py-3">
-                          Date
-                        </th>
-                        <th className="text-left font-semibold px-5 py-3">
-                          Donor
-                        </th>
-                        <th className="text-left font-semibold px-5 py-3">
-                          Type
-                        </th>
-                        <th className="text-left font-semibold px-5 py-3">
-                          Value
-                        </th>
-                        <th className="text-left font-semibold px-5 py-3">
-                          Incident
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {donations.map((donation) => {
-                        const isMoney =
-                          String(donation?.donation_type).toLowerCase() ===
-                          "money";
-                        const valueText = isMoney
-                          ? currencyFormatter.format(Number(donation?.amount || 0))
-                          : `${donation?.item_name || "Item"} x ${
-                              donation?.quantity || 0
-                            }`;
-
-                        return (
-                          <tr key={donation.id} className="border-t border-slate-100">
-                            <td className="px-5 py-3 text-slate-700">
-                              {formatDateTime(donation?.created_at)}
-                            </td>
-                            <td className="px-5 py-3 text-slate-700">
-                              {donation?.donor_name || "Anonymous"}
-                            </td>
-                            <td className="px-5 py-3 text-slate-700 capitalize">
-                              {donation?.donation_type || "N/A"}
-                            </td>
-                            <td className="px-5 py-3 text-slate-700">
-                              {valueText}
-                            </td>
-                            <td className="px-5 py-3 text-slate-700">
-                              #{donation?.incident || "N/A"}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+            <div className="rounded-2xl border border-[#d4e2eb] bg-white p-4">
+              <p className="inline-flex items-center gap-2 text-xs uppercase tracking-wider text-[var(--text-soft)]"><BanknoteArrowDown size={14} />Money</p>
+              <p className="mt-2 text-2xl font-bold text-[#0f7a5e]">{metrics.moneyCount}</p>
             </div>
-          </>
-        )}
-      </div>
+            <div className="rounded-2xl border border-[#d4e2eb] bg-white p-4">
+              <p className="inline-flex items-center gap-2 text-xs uppercase tracking-wider text-[var(--text-soft)]"><Package size={14} />Items</p>
+              <p className="mt-2 text-2xl font-bold text-[#1757b0]">{metrics.itemCount}</p>
+            </div>
+            <div className="rounded-2xl border border-[#d4e2eb] bg-white p-4">
+              <p className="inline-flex items-center gap-2 text-xs uppercase tracking-wider text-[var(--text-soft)]"><Landmark size={14} />Total Amount</p>
+              <p className="mt-2 text-xl font-bold text-[var(--text)]">{currencyFormatter.format(metrics.totalAmount)}</p>
+            </div>
+            <div className="rounded-2xl border border-[#d4e2eb] bg-white p-4">
+              <p className="text-xs uppercase tracking-wider text-[var(--text-soft)]">Anonymous</p>
+              <p className="mt-2 text-2xl font-bold text-[#a93f1b]">{metrics.anonymousCount}</p>
+            </div>
+          </section>
+
+          <section className="mt-6 overflow-hidden rounded-3xl border border-[#d4e2eb] bg-white">
+            <div className="border-b border-[#e7eff5] bg-[#f8fcff] px-5 py-4">
+              <h2 className="text-lg font-bold text-[var(--text)]">Recent Donation Entries</h2>
+            </div>
+            {donations.length === 0 ? (
+              <p className="px-5 py-8 text-sm text-[var(--text-soft)]">No donation entries found yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-[#f8fcff] text-[var(--text-soft)]">
+                    <tr>
+                      <th className="px-5 py-3 text-left font-semibold">Date</th>
+                      <th className="px-5 py-3 text-left font-semibold">Donor</th>
+                      <th className="px-5 py-3 text-left font-semibold">Type</th>
+                      <th className="px-5 py-3 text-left font-semibold">Value</th>
+                      <th className="px-5 py-3 text-left font-semibold">Incident</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {donations.map((donation) => {
+                      const isMoney = String(donation?.donation_type).toLowerCase() === "money";
+                      const value = isMoney
+                        ? currencyFormatter.format(Number(donation?.amount || 0))
+                        : `${donation?.item_name || "Item"} x ${donation?.quantity || 0}`;
+
+                      return (
+                        <tr key={donation.id} className="border-t border-[#eaf0f5]">
+                          <td className="px-5 py-3 text-[var(--text)]">{formatDateTime(donation?.created_at)}</td>
+                          <td className="px-5 py-3 text-[var(--text)]">{donation?.donor_name || "Anonymous"}</td>
+                          <td className="px-5 py-3 capitalize text-[var(--text)]">{donation?.donation_type || "N/A"}</td>
+                          <td className="px-5 py-3 text-[var(--text)]">{value}</td>
+                          <td className="px-5 py-3 text-[var(--text)]">#{donation?.incident || "N/A"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
-};
-
-export default Transparency;
+}

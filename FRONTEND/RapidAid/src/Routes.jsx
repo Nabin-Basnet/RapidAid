@@ -3,6 +3,9 @@ import UserLayout from "./Layouts/UserLayout";
 import Homepage from "./Pages/Hompage";
 import Login from "./Auth/Login";
 import Register from "./Auth/Register";
+import ForgotPassword from "./Auth/ForgotPassword";
+import ResetPassword from "./Auth/ResetPassword";
+import { RequireAuth, RequireRole } from "./Auth/RouteGuards";
 import Incidents from "./Pages/incidents/Incidents";
 import IncidentDetail from "./Pages/incidents/Incidentsdetail";
 import Profile from "./Pages/Profile";
@@ -10,6 +13,7 @@ import DonationPage from "./Pages/donations/DonationPage";
 import ReportIncident from "./Pages/incidents/ReportIncidents";
 import DonationForm from "./Pages/donations/DonationForm";
 import DonerRegister from "./Pages/donations/DonerRegister";
+import KhaltiCallback from "./Pages/donations/KhaltiCallback";
 import VolunteerForm from "./Pages/volunteer/VolunteerForm";
 import Transparency from "./Pages/Transparency";
 import AdminLayout from "./Layouts/AdminLayout";
@@ -35,50 +39,6 @@ const router = createBrowserRouter([
         element: <Homepage />,
       },
       {
-        path: "/donations",
-        element: <DonationPage />,
-      },
-      {
-        path:"/donates",
-        element:<DonationForm/>
-      },
-      {
-        path:"/doner",
-        element:<DonerRegister/>
-      },
-      {
-        path:"/report",
-        element:<ReportIncident/>
-      },
-      {
-        path: "/transparency",
-        element: <Transparency />,
-      },
-      {
-        path: "/volunteer/apply/:id",
-        element: <VolunteerForm />,
-      },
-      {
-        path: "profile",
-        element: <Profile />,
-      },
-      {
-        path: "profile/edit",
-        element: <EditProfile />,
-      },
-      {
-        path: "/rescue",
-        element: <RescueDashboard />,
-      },
-      {
-        path: "/assessments",
-        element: <AssessmentDashboard />,
-      },
-      {
-        path: "/ledger",
-        element: <LedgerPage />,
-      },
-      {
         path: "incidents",
         children: [
           {
@@ -91,6 +51,74 @@ const router = createBrowserRouter([
           },
         ],
       },
+      {
+        element: <RequireAuth />,
+        children: [
+          {
+            path: "/donations",
+            element: <DonationPage />,
+          },
+          {
+            path: "/donates",
+            element: <DonationForm />,
+          },
+          {
+            path: "/doner",
+            element: <DonerRegister />,
+          },
+          {
+            path: "/donations/khalti/callback",
+            element: <KhaltiCallback />,
+          },
+          {
+            path: "/report",
+            element: <ReportIncident />,
+          },
+          {
+            path: "/transparency",
+            element: <Transparency />,
+          },
+          {
+            path: "/volunteer/apply/:id",
+            element: <VolunteerForm />,
+          },
+          {
+            path: "profile",
+            element: <Profile />,
+          },
+          {
+            path: "profile/edit",
+            element: <EditProfile />,
+          },
+        ],
+      },
+      {
+        element: <RequireRole roles={["admin", "rescue_team"]} />,
+        children: [
+          {
+            path: "/rescue",
+            element: <RescueDashboard />,
+          },
+        ],
+      },
+      {
+        element: <RequireRole roles={["admin", "assessment_team"]} />,
+        children: [
+          {
+            path: "/assessments",
+            element: <AssessmentDashboard />,
+          },
+        ],
+      },
+      {
+        element: <RequireRole roles={["admin"]} />,
+        children: [
+          {
+            path: "/ledger",
+            element: <LedgerPage />,
+          },
+        ],
+      },
     ],
   },
   {
@@ -100,6 +128,14 @@ const router = createBrowserRouter([
   {
     path: "/register",
     element: <Register />,
+  },
+  {
+    path: "/forgot-password",
+    element: <ForgotPassword />,
+  },
+  {
+    path: "/reset-password",
+    element: <ResetPassword />,
   },
   {
     path: "/admin",
