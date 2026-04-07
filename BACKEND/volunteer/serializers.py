@@ -32,3 +32,25 @@ class AdminVolunteerUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = VolunteerAssignment
         fields = ["status"]
+
+    def validate_status(self, value):
+        instance = self.instance
+        current = instance.status if instance else None
+
+        # Completed assignments are terminal.
+        if current == "completed":
+            raise serializers.ValidationError("Completed volunteer assignment cannot be changed.")
+
+        allowed_transitions = {
+            "pending": {"approved", "rejected"},
+            "approved": {"completed", "rejected", "suspended"},
+            "suspended": {"approved", "rejected"},
+            "rejected": {"approved"},
+        }
+
+        if current in allowed_transitions and value not in allowed_transitions[current]:
+            raise serializers.ValidationError(
+                f"Cannot change volunteer status from '{current}' to '{value}'."
+            )
+
+        return value

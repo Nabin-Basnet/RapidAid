@@ -320,9 +320,9 @@ class AdminUserListAPIView(generics.ListAPIView):
 # ============================================================
 # ADMIN: USER DETAIL
 # ============================================================
-class AdminUserDetailAPIView(generics.RetrieveAPIView):
+class AdminUserDetailAPIView(generics.RetrieveUpdateAPIView):
     """
-    Admin can view a specific user.
+    Admin can view or update a specific user.
     """
     serializer_class = UserDetailSerializer
     permission_classes = [IsAdminRole]

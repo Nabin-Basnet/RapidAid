@@ -11,7 +11,7 @@ User = get_user_model()
 # --------------------------------------------------
 class LedgerEntrySerializer(serializers.ModelSerializer):
     changed_by_name = serializers.CharField(
-        source="changed_by.get_full_name",
+        source="changed_by.full_name",
         read_only=True
     )
 

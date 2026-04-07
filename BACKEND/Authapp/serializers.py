@@ -22,12 +22,15 @@ class UserDetailSerializer(serializers.ModelSerializer):
             "password",
             "role",
             "role_display",
+            "is_active",
+            "is_staff",
             "date_joined",
         ]
         read_only_fields = [
             "id",
             "profile_photo_url",
             "role_display",
+            "is_staff",
             "date_joined",
         ]
 

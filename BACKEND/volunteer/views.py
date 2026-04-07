@@ -15,6 +15,13 @@ from RapidAid.email_utils import send_notification_email
 from ledger.utils import create_ledger_entry
 
 
+def _remove_from_incident_volunteer_team(assignment):
+    RescueTeamMember.objects.filter(
+        user=assignment.user,
+        team__name=f"Volunteer Team - Incident {assignment.incident.id}",
+    ).delete()
+
+
 # =========================================
 # APPLY AS VOLUNTEER (CITIZEN)
 # =========================================
@@ -37,7 +44,8 @@ class ApplyVolunteerAPIView(generics.CreateAPIView):
             user=user,
             status__in=[
                 VolunteerStatus.PENDING,
-                VolunteerStatus.APPROVED
+                VolunteerStatus.APPROVED,
+                VolunteerStatus.SUSPENDED,
             ]
         ).exists()
 
@@ -61,7 +69,7 @@ class ApplyVolunteerAPIView(generics.CreateAPIView):
 
 
 # =========================================
-# ADMIN: APPROVE / REJECT VOLUNTEER
+# ADMIN: APPROVE / REJECT / SUSPEND VOLUNTEER
 # =========================================
 class AdminUpdateVolunteerAPIView(generics.UpdateAPIView):
     serializer_class = AdminVolunteerUpdateSerializer
@@ -118,6 +126,7 @@ class AdminUpdateVolunteerAPIView(generics.UpdateAPIView):
                     )
             elif status == VolunteerStatus.REJECTED:
                 updated_assignment = serializer.save()
+                _remove_from_incident_volunteer_team(updated_assignment)
                 if previous_status != VolunteerStatus.REJECTED:
                     send_notification_email(
                         to_email=updated_assignment.user.email,
@@ -127,6 +136,21 @@ class AdminUpdateVolunteerAPIView(generics.UpdateAPIView):
                             f"Your volunteer application for incident '{updated_assignment.incident.title}' "
                             "was not approved at this time.\n"
                             "You can still support the platform by applying to future verified incidents.\n\n"
+                            "Regards,\nRapidAid Team"
+                        ),
+                    )
+            elif status == VolunteerStatus.SUSPENDED:
+                updated_assignment = serializer.save()
+                _remove_from_incident_volunteer_team(updated_assignment)
+                if previous_status != VolunteerStatus.SUSPENDED:
+                    send_notification_email(
+                        to_email=updated_assignment.user.email,
+                        subject="RapidAid: Volunteer Assignment Suspended",
+                        message=(
+                            f"Hello {updated_assignment.user.full_name},\n\n"
+                            f"Your volunteer assignment for incident '{updated_assignment.incident.title}' "
+                            "has been temporarily suspended by admin due to unusual activity.\n"
+                            "Please contact the RapidAid admin team for clarification.\n\n"
                             "Regards,\nRapidAid Team"
                         ),
                     )

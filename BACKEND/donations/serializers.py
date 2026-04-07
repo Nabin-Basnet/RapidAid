@@ -22,6 +22,10 @@ class DonorSerializer(serializers.ModelSerializer):
 # ----------------------------------
 class DonationSerializer(serializers.ModelSerializer):
     donor_name = serializers.SerializerMethodField()
+    incident_title = serializers.CharField(
+        source="incident.title",
+        read_only=True
+    )
 
     class Meta:
         model = Donation

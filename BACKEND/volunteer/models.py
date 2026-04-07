@@ -6,6 +6,7 @@ from incidents.models import Incident
 class VolunteerStatus(models.TextChoices):
     PENDING = "pending", "Pending"
     APPROVED = "approved", "Approved"
+    SUSPENDED = "suspended", "Suspended"
     REJECTED = "rejected", "Rejected"
     COMPLETED = "completed", "Completed"
 

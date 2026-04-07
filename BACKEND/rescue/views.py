@@ -1,5 +1,6 @@
-from rest_framework import generics, permissions
+from rest_framework import generics, permissions, status
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.response import Response
 from django.utils import timezone
 
 from .models import RescueTeam, RescueTeamMember, RescueAssignment
@@ -52,6 +53,24 @@ class AddRescueTeamMemberAPIView(generics.CreateAPIView):
         )
 
 
+class RemoveRescueTeamMemberAPIView(generics.DestroyAPIView):
+    queryset = RescueTeamMember.objects.select_related("team", "user")
+    permission_classes = [IsAdminRole]
+
+    def destroy(self, request, *args, **kwargs):
+        member = self.get_object()
+        create_ledger_entry(
+            module="rescue_team_members",
+            reference_id=member.id,
+            action="deleted",
+            changed_by=request.user,
+            old_data={"team_id": member.team_id, "user_id": member.user_id, "role": member.role},
+            note="Rescue team member removed.",
+        )
+        self.perform_destroy(member)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class RescueTeamListAPIView(generics.ListAPIView):
     serializer_class = RescueTeamSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -62,6 +81,33 @@ class RescueTeamListAPIView(generics.ListAPIView):
         if user.is_admin_role:
             return qs
         return qs.filter(members__user=user).distinct()
+
+
+class DeleteRescueTeamAPIView(generics.DestroyAPIView):
+    queryset = RescueTeam.objects.prefetch_related("members", "assignments")
+    permission_classes = [IsAdminRole]
+
+    def destroy(self, request, *args, **kwargs):
+        team = self.get_object()
+
+        has_active_assignments = team.assignments.exclude(status="completed").exists()
+        if has_active_assignments:
+            raise PermissionDenied("Cannot delete a rescue team with active assignments.")
+
+        create_ledger_entry(
+            module="rescue_teams",
+            reference_id=team.id,
+            action="deleted",
+            changed_by=request.user,
+            old_data={
+                "name": team.name,
+                "organization": team.organization,
+                "member_count": team.members.count(),
+            },
+            note="Rescue team deleted.",
+        )
+        self.perform_destroy(team)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # =========================================

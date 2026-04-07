@@ -63,6 +63,11 @@ class VolunteerAssignmentAdmin(admin.ModelAdmin):
                     user=obj.user,
                     defaults={"role": "Volunteer"},
                 )
+            elif obj.status in [VolunteerStatus.REJECTED, VolunteerStatus.SUSPENDED]:
+                RescueTeamMember.objects.filter(
+                    user=obj.user,
+                    team__name=f"Volunteer Team - Incident {obj.incident.id}",
+                ).delete()
 
             if previous_status != obj.status:
                 if obj.status == VolunteerStatus.APPROVED:
@@ -84,6 +89,17 @@ class VolunteerAssignmentAdmin(admin.ModelAdmin):
                             f"Hello {obj.user.full_name},\n\n"
                             f"Your volunteer application for incident '{obj.incident.title}' was not approved at this time.\n"
                             "You can still support the platform by applying to future verified incidents.\n\n"
+                            "Regards,\nRapidAid Team"
+                        ),
+                    )
+                elif obj.status == VolunteerStatus.SUSPENDED:
+                    send_notification_email(
+                        to_email=obj.user.email,
+                        subject="RapidAid: Volunteer Assignment Suspended",
+                        message=(
+                            f"Hello {obj.user.full_name},\n\n"
+                            f"Your volunteer assignment for incident '{obj.incident.title}' has been temporarily suspended by admin due to unusual activity.\n"
+                            "Please contact the RapidAid admin team for clarification.\n\n"
                             "Regards,\nRapidAid Team"
                         ),
                     )
