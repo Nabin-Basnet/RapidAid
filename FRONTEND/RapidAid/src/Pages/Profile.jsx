@@ -5,7 +5,7 @@ import axiosInstance from "../api/Axios";
 import { logoutUser } from "../Auth/utils";
 
 const formatCurrency = (amount) =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(amount || 0));
+  new Intl.NumberFormat("en-NP", { style: "currency", currency: "NPR", maximumFractionDigits: 0 }).format(Number(amount || 0));
 
 const formatStatus = (value) =>
   value ? value.toString().replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()) : "N/A";

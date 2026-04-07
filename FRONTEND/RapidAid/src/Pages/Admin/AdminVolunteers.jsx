@@ -4,9 +4,35 @@ import { formatDate, parseList } from "./adminUtils";
 
 const VOLUNTEER_STATUSES = [
   { label: "Approve", value: "approved" },
+  { label: "Suspend", value: "suspended" },
   { label: "Reject", value: "rejected" },
   { label: "Complete", value: "completed" },
 ];
+
+const getAvailableActions = (status) => {
+  const normalized = String(status || "").toLowerCase();
+
+  if (normalized === "completed") {
+    return [];
+  }
+  if (normalized === "suspended") {
+    return [];
+  }
+  if (normalized === "pending") {
+    return VOLUNTEER_STATUSES.filter((item) =>
+      ["approved", "rejected"].includes(item.value)
+    );
+  }
+  if (normalized === "approved") {
+    return VOLUNTEER_STATUSES.filter((item) =>
+      ["suspended", "rejected", "completed"].includes(item.value)
+    );
+  }
+  if (normalized === "rejected") {
+    return VOLUNTEER_STATUSES.filter((item) => item.value === "approved");
+  }
+  return VOLUNTEER_STATUSES;
+};
 
 export default function AdminVolunteers() {
   const [loading, setLoading] = useState(true);
@@ -49,6 +75,7 @@ export default function AdminVolunteers() {
         {assignments.length === 0 && <p className="px-5 py-6 text-sm text-[var(--text-soft)]">No volunteer applications available.</p>}
         {assignments.map((assignment) => {
           const loadingKey = `volunteer-${assignment.id}`;
+          const availableActions = getAvailableActions(assignment.status);
           return (
             <article key={assignment.id} className="border-b border-[#ecf2f7] px-5 py-4 last:border-b-0">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -58,7 +85,7 @@ export default function AdminVolunteers() {
                   <p className="text-xs text-[var(--text-soft)]">Applied: {formatDate(assignment.applied_at)}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {VOLUNTEER_STATUSES.map((item) => (
+                  {availableActions.map((item) => (
                     <button key={item.value} onClick={() => handleVolunteerStatus(assignment.id, item.value)} disabled={!!actionState[loadingKey]} className="rounded-xl bg-[var(--brand)] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">
                       {item.label}
                     </button>

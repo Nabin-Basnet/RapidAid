@@ -12,6 +12,8 @@ export default function DonorDetails() {
   const [donations, setDonations] = useState([]);
   const [incidentMap, setIncidentMap] = useState({});
   const navigate = useNavigate();
+  const formatCurrency = (amount) =>
+    new Intl.NumberFormat("en-NP", { style: "currency", currency: "NPR", maximumFractionDigits: 0 }).format(Number(amount || 0));
 
   useEffect(() => {
     axios.get("/donations/my/").then((res) => setDonations(normalizeList(res.data))).catch(() => {});
@@ -28,7 +30,7 @@ export default function DonorDetails() {
   const grouped = Object.values(
     donations.reduce((acc, d) => {
       const incidentId = d.incident?.id || d.incident;
-      const incidentTitle = d.incident?.title || incidentMap[incidentId] || `Incident #${incidentId}`;
+      const incidentTitle = d.incident_title || d.incident?.title || incidentMap[incidentId] || `Incident #${incidentId}`;
       const key = incidentId || "unknown";
 
       if (!acc[key]) acc[key] = { incidentId, incidentTitle, groups: {} };
@@ -70,7 +72,7 @@ export default function DonorDetails() {
                 <div className="mt-2 space-y-1 text-sm text-[var(--text)]">
                   {items.map((d) =>
                     d.donation_type === "money" ? (
-                      <p key={d.id}>Money: {d.amount}</p>
+                      <p key={d.id}>Money: {formatCurrency(d.amount)}</p>
                     ) : (
                       <p key={d.id}>Item: {d.item_name} ({d.quantity})</p>
                     )

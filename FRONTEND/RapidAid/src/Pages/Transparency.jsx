@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ShieldCheck, Wallet, Package, BanknoteArrowDown, Landmark } from "lucide-react";
+import { ShieldCheck, Wallet, Package, BanknoteArrowDown, Landmark, AlertTriangle } from "lucide-react";
 import axiosInstance from "../api/Axios";
 
-const currencyFormatter = new Intl.NumberFormat("en-US", {
+const currencyFormatter = new Intl.NumberFormat("en-NP", {
   style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 2,
+  currency: "NPR",
+  maximumFractionDigits: 0,
 });
 
 const normalizeList = (payload) => {
@@ -19,6 +19,7 @@ const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : "N
 
 export default function Transparency() {
   const [donations, setDonations] = useState([]);
+  const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -27,8 +28,12 @@ export default function Transparency() {
       try {
         setLoading(true);
         setError("");
-        const res = await axiosInstance.get("/donations/list/");
-        setDonations(normalizeList(res.data));
+        const [donationRes, incidentRes] = await Promise.all([
+          axiosInstance.get("/donations/list/"),
+          axiosInstance.get("/incidents/"),
+        ]);
+        setDonations(normalizeList(donationRes.data));
+        setIncidents(normalizeList(incidentRes.data));
       } catch (err) {
         setError(err?.response?.data?.detail || "Transparency data could not be loaded right now.");
       } finally {
@@ -50,6 +55,42 @@ export default function Transparency() {
       anonymousCount: donations.filter((d) => d?.is_anonymous).length,
     };
   }, [donations]);
+
+  const incidentBreakdown = useMemo(() => {
+    const incidentMap = incidents.reduce((acc, incident) => {
+      acc[incident.id] = incident;
+      return acc;
+    }, {});
+
+    return Object.values(
+      donations.reduce((acc, donation) => {
+        const incidentId = donation.incident;
+        const incident = incidentMap[incidentId];
+        const key = incidentId || `unknown-${donation.id}`;
+
+        if (!acc[key]) {
+          acc[key] = {
+            incidentId,
+            title: donation.incident_title || incident?.title || `Incident #${incidentId}`,
+            status: incident?.status || "unknown",
+            severity: incident?.severity || "unknown",
+            money: 0,
+            items: 0,
+            entries: 0,
+          };
+        }
+
+        acc[key].entries += 1;
+        if (String(donation.donation_type).toLowerCase() === "money") {
+          acc[key].money += Number(donation.amount || 0);
+        } else {
+          acc[key].items += Number(donation.quantity || 0);
+        }
+
+        return acc;
+      }, {})
+    ).sort((a, b) => b.money - a.money || b.entries - a.entries);
+  }, [donations, incidents]);
 
   return (
     <div className="section-wrap pb-12 pt-24">
@@ -101,6 +142,43 @@ export default function Transparency() {
             </div>
           </section>
 
+          <section className="mt-6 rounded-3xl border border-[#d4e2eb] bg-white">
+            <div className="border-b border-[#e7eff5] bg-[#f8fcff] px-5 py-4">
+              <h2 className="text-lg font-bold text-[var(--text)]">Incident Support Breakdown</h2>
+            </div>
+            {incidentBreakdown.length === 0 ? (
+              <p className="px-5 py-8 text-sm text-[var(--text-soft)]">No incident-linked donations available yet.</p>
+            ) : (
+              <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
+                {incidentBreakdown.map((item) => (
+                  <article key={item.incidentId || item.title} className="rounded-2xl border border-[#deebf3] bg-[#f8fcff] p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-bold text-[var(--text)]">{item.title}</h3>
+                        <p className="mt-1 text-xs uppercase tracking-wide text-[var(--text-soft)]">
+                          Status: {item.status} | Severity: {item.severity}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[var(--text-soft)]">
+                        {item.entries} entr{item.entries === 1 ? "y" : "ies"}
+                      </span>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      <div className="rounded-xl border border-[#e3edf4] bg-white p-3">
+                        <p className="text-xs text-[var(--text-soft)]">Money Raised</p>
+                        <p className="mt-1 text-lg font-bold text-[var(--text)]">{currencyFormatter.format(item.money)}</p>
+                      </div>
+                      <div className="rounded-xl border border-[#e3edf4] bg-white p-3">
+                        <p className="text-xs text-[var(--text-soft)]">Items Donated</p>
+                        <p className="mt-1 text-lg font-bold text-[var(--text)]">{item.items}</p>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+
           <section className="mt-6 overflow-hidden rounded-3xl border border-[#d4e2eb] bg-white">
             <div className="border-b border-[#e7eff5] bg-[#f8fcff] px-5 py-4">
               <h2 className="text-lg font-bold text-[var(--text)]">Recent Donation Entries</h2>
@@ -132,7 +210,7 @@ export default function Transparency() {
                           <td className="px-5 py-3 text-[var(--text)]">{donation?.donor_name || "Anonymous"}</td>
                           <td className="px-5 py-3 capitalize text-[var(--text)]">{donation?.donation_type || "N/A"}</td>
                           <td className="px-5 py-3 text-[var(--text)]">{value}</td>
-                          <td className="px-5 py-3 text-[var(--text)]">#{donation?.incident || "N/A"}</td>
+                          <td className="px-5 py-3 text-[var(--text)]">{donation?.incident_title || `#${donation?.incident || "N/A"}`}</td>
                         </tr>
                       );
                     })}
@@ -140,6 +218,16 @@ export default function Transparency() {
                 </table>
               </div>
             )}
+          </section>
+
+          <section className="mt-6 rounded-3xl border border-[#d4e2eb] bg-white p-5">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={16} />
+              <h2 className="text-lg font-bold text-[var(--text)]">What This Shows</h2>
+            </div>
+            <p className="mt-3 text-sm text-[var(--text-soft)]">
+              This page currently summarizes platform donation activity and how support is distributed across verified incidents.
+            </p>
           </section>
         </>
       )}

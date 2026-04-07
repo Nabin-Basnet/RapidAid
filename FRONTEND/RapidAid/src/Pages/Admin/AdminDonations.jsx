@@ -36,7 +36,7 @@ export default function AdminDonations() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <p className="text-lg font-semibold text-[var(--text)]">{donation.donor_name || "Anonymous"} - {donation.donation_type}</p>
-                <p className="text-sm text-[var(--text-soft)]">Incident ID: {donation.incident || "N/A"} | {donation.donation_type === "money" ? `Amount: ${donation.amount || 0}` : `Item: ${donation.item_name || "N/A"} (${donation.quantity || 0})`}</p>
+                <p className="text-sm text-[var(--text-soft)]">{donation.incident_title || `Incident ID: ${donation.incident || "N/A"}`} | {donation.donation_type === "money" ? `Amount: NPR ${donation.amount || 0}` : `Item: ${donation.item_name || "N/A"} (${donation.quantity || 0})`}</p>
                 <p className="text-xs text-[var(--text-soft)]">Created: {formatDate(donation.created_at)}</p>
               </div>
               <div className="text-xs font-semibold uppercase tracking-wider text-[var(--text-soft)]">{donation.is_anonymous ? "Anonymous" : "Named"}</div>

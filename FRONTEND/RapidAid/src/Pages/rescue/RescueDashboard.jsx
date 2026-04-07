@@ -29,6 +29,7 @@ export default function RescueDashboard() {
   const [memberLoading, setMemberLoading] = useState(false);
   const [assignmentLoading, setAssignmentLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState({});
+  const [deleteLoading, setDeleteLoading] = useState({});
 
   const user = useMemo(() => {
     try { return JSON.parse(localStorage.getItem("user") || "null"); }
@@ -176,6 +177,36 @@ export default function RescueDashboard() {
     }
   };
 
+  const removeMember = async (memberId) => {
+    setDeleteLoading((prev) => ({ ...prev, [`member-${memberId}`]: true }));
+    setError("");
+    setSuccess("");
+    try {
+      await axiosInstance.delete(`rescue/teams/members/${memberId}/delete/`);
+      setSuccess("Team member removed.");
+      await loadData();
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Could not remove team member.");
+    } finally {
+      setDeleteLoading((prev) => ({ ...prev, [`member-${memberId}`]: false }));
+    }
+  };
+
+  const deleteTeam = async (teamId) => {
+    setDeleteLoading((prev) => ({ ...prev, [`team-${teamId}`]: true }));
+    setError("");
+    setSuccess("");
+    try {
+      await axiosInstance.delete(`rescue/teams/${teamId}/delete/`);
+      setSuccess("Rescue team deleted.");
+      await loadData();
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Could not delete team.");
+    } finally {
+      setDeleteLoading((prev) => ({ ...prev, [`team-${teamId}`]: false }));
+    }
+  };
+
   if (loading) return <div className="section-wrap min-h-screen pt-28"><div className="rounded-3xl border border-[#d4e2eb] bg-white p-8 text-sm text-[var(--text-soft)]">Loading rescue dashboard...</div></div>;
 
   return (
@@ -271,16 +302,36 @@ export default function RescueDashboard() {
                 <p className="font-semibold text-[var(--text)]">{team.name}</p>
                 <p className="text-sm text-[var(--text-soft)]">{team.organization}</p>
               </div>
-              <p className="text-xs font-semibold uppercase text-[var(--text-soft)]">{team.member_count || team.members?.length || 0} member(s)</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold uppercase text-[var(--text-soft)]">{team.member_count || team.members?.length || 0} member(s)</p>
+                {isAdmin && (
+                  <button
+                    onClick={() => deleteTeam(team.id)}
+                    disabled={deleteLoading[`team-${team.id}`]}
+                    className="rounded-xl bg-[#b42318] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                  >
+                    Delete Team
+                  </button>
+                )}
+              </div>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               {(team.members || []).length === 0 ? (
                 <p className="text-sm text-[var(--text-soft)]">No members yet.</p>
               ) : (
                 (team.members || []).map((member) => (
-                  <span key={member.id} className="rounded-full border border-[#d9e7f1] bg-[#f8fbff] px-3 py-1 text-xs text-[var(--text)]">
-                    {member.user_name} - {member.role}
-                  </span>
+                  <div key={member.id} className="flex items-center gap-2 rounded-full border border-[#d9e7f1] bg-[#f8fbff] px-3 py-1 text-xs text-[var(--text)]">
+                    <span>{member.user_name} - {member.role}</span>
+                    {isAdmin && (
+                      <button
+                        onClick={() => removeMember(member.id)}
+                        disabled={deleteLoading[`member-${member.id}`]}
+                        className="font-semibold text-[#b42318] disabled:opacity-60"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
                 ))
               )}
             </div>
