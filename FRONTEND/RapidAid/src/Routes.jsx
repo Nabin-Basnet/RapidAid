@@ -13,7 +13,6 @@ import DonationPage from "./Pages/donations/DonationPage";
 import ReportIncident from "./Pages/incidents/ReportIncidents";
 import DonationForm from "./Pages/donations/DonationForm";
 import DonerRegister from "./Pages/donations/DonerRegister";
-import KhaltiCallback from "./Pages/donations/KhaltiCallback";
 import VolunteerForm from "./Pages/volunteer/VolunteerForm";
 import Transparency from "./Pages/Transparency";
 import AdminLayout from "./Layouts/AdminLayout";
@@ -27,6 +26,7 @@ import RescueDashboard from "./Pages/rescue/RescueDashboard";
 import AssessmentDashboard from "./Pages/assessments/AssessmentDashboard";
 import LedgerPage from "./Pages/ledger/LedgerPage";
 import EditProfile from "./Pages/profile/EditProfile";
+import KhaltiCallback from "./Pages/donations/KhaltiCallback";
 // import DonationPage from "./Pages/donations/DonationPage";
 
 const router = createBrowserRouter([
@@ -67,10 +67,6 @@ const router = createBrowserRouter([
             element: <DonerRegister />,
           },
           {
-            path: "/donations/khalti/callback",
-            element: <KhaltiCallback />,
-          },
-          {
             path: "/report",
             element: <ReportIncident />,
           },
@@ -89,6 +85,10 @@ const router = createBrowserRouter([
           {
             path: "profile/edit",
             element: <EditProfile />,
+          },
+          {
+            path: "/payment/khalti-callback",
+            element: <KhaltiCallback />,
           },
         ],
       },

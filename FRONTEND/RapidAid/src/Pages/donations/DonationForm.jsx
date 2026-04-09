@@ -63,8 +63,8 @@ export default function DonationForm() {
       return;
     }
 
-    if (donationType === "money" && (!amount || Number(amount) < 10)) {
-      setError("Minimum Khalti donation amount is NPR 10.");
+    if (donationType === "money" && (!amount || Number(amount) <= 0)) {
+      setError("Please enter a valid donation amount.");
       return;
     }
 
@@ -76,18 +76,17 @@ export default function DonationForm() {
     setLoading(true);
     try {
       if (donationType === "money") {
-        const response = await axiosInstance.post("/donations/khalti/initiate/", {
+        const res = await axiosInstance.post("/donations/donate/", {
           incident: incidentId,
+          donation_type: "money",
           is_anonymous: isAnonymous,
           amount,
+          return_url: `${window.location.origin}/payment/khalti-callback`,
         });
-
-        const paymentUrl = response?.data?.payment_url;
-        if (!paymentUrl) {
-          throw new Error("Khalti payment URL not returned");
+        if (res.data?.payment_url) {
+          window.location.href = res.data.payment_url;
+          return;
         }
-        window.location.href = paymentUrl;
-        return;
       } else {
         const queue = [...items];
         if (itemDraft.item_name.trim() && Number(itemDraft.quantity) > 0) {
@@ -227,7 +226,7 @@ export default function DonationForm() {
             className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-3 text-sm font-bold text-white hover:bg-[var(--brand-strong)] disabled:opacity-60"
           >
             <Gift size={14} />
-            {loading ? "Processing..." : donationType === "money" ? "Pay with Khalti" : "Submit Donation"}
+            {loading ? "Processing..." : "Submit Donation"}
           </button>
         </form>
       </div>
