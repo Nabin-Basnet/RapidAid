@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
-import os
+import os # Force reload 2
 import re
 
 
@@ -97,6 +97,7 @@ MIDDLEWARE = [
 ]
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "http://localhost:5174",
 ]
 
 
@@ -125,8 +126,12 @@ WSGI_APPLICATION = 'RapidAid.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'rapidaid',
+        'USER': 'root',
+        'PASSWORD': '@adminpass123',
+        'HOST':'localhost',
+        'PORT': "3306"
     }
 }
 MEDIA_URL = '/media/'
@@ -221,12 +226,8 @@ PASSWORD_RESET_FRONTEND_URL = os.getenv(
     "http://localhost:5173/reset-password",
 )
 
-# Khalti ePayment configuration
-KHALTI_SECRET_KEY = os.getenv("KHALTI_SECRET_KEY", "")
-KHALTI_PUBLIC_KEY = os.getenv("KHALTI_PUBLIC_KEY", "")
-KHALTI_API_BASE_URL = os.getenv("KHALTI_API_BASE_URL", "https://khalti.com/api/v2")
-KHALTI_WEBSITE_URL = os.getenv("KHALTI_WEBSITE_URL", "http://localhost:5173")
-KHALTI_RETURN_URL = os.getenv(
-    "KHALTI_RETURN_URL",
-    "http://localhost:5173/donations/khalti/callback",
-)
+# Khalti Payment Gateway
+KHALTI_SECRET_KEY = os.getenv("KHALTI_SECRET_KEY", "live_secret_key_here")
+KHALTI_API_URL = os.getenv("KHALTI_API_URL", "https://a.khalti.com/api/v2")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5174")
+

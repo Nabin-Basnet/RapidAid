@@ -75,10 +75,12 @@ class Donation(models.Model):
     payment_status = models.CharField(
         max_length=10,
         choices=PAYMENT_STATUS,
-        default="paid",
+        default="pending",
     )
-    khalti_pidx = models.CharField(max_length=100, blank=True, null=True, unique=True)
-    khalti_transaction_id = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Khalti Specific
+    pidx = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    payment_ref = models.CharField(max_length=255, unique=True, null=True, blank=True)
 
     def __str__(self):
         return f"{self.donation_type} donation to {self.incident.title}"

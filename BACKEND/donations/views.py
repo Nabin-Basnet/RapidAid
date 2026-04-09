@@ -1,18 +1,14 @@
-import json
-from decimal import Decimal, InvalidOperation
-from urllib import error as urlerror
-from urllib import request as urlrequest
-
+import requests
 from django.conf import settings
 from django.db.models import Q
 from rest_framework.exceptions import PermissionDenied
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Donor, Donation
 from .serializers import DonorSerializer, DonationSerializer
-from incidents.models import Incident, IncidentStatus
+from incidents.models import IncidentStatus
 from ledger.utils import create_ledger_entry
 
 
@@ -69,35 +65,87 @@ class CreateDonationAPIView(generics.CreateAPIView):
     serializer_class = DonationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
         user = self.request.user
 
         if not hasattr(user, "donor_profile"):
             raise PermissionDenied("Create donor profile first")
 
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         incident = serializer.validated_data["incident"]
-        donation_type = serializer.validated_data["donation_type"]
 
         if incident.status == IncidentStatus.RESOLVED:
             raise PermissionDenied("Donations closed for this incident")
-        if donation_type == "money":
-            raise PermissionDenied("Use Khalti payment endpoint for monetary donations")
+            
+        donation_type = serializer.validated_data.get("donation_type")
+        is_money = donation_type == "money"
 
-        donation = serializer.save(donor=user.donor_profile)
-        create_ledger_entry(
-            module="donations",
-            reference_id=donation.id,
-            action="created",
-            changed_by=user,
-            new_data={
-                "incident_id": donation.incident_id,
-                "donation_type": donation.donation_type,
-                "amount": str(donation.amount) if donation.amount is not None else None,
-                "item_name": donation.item_name,
-                "quantity": donation.quantity,
-            },
-            note="Donation submitted.",
-        )
+        donation = serializer.save(donor=user.donor_profile, payment_status="pending" if is_money else "paid")
+
+        if is_money:
+            # Call Khalti API
+            amount_in_paisa = int(donation.amount * 100)
+            return_url = request.data.get("return_url", settings.FRONTEND_URL + "/payment/khalti-callback")
+            
+            payload = {
+                "return_url": return_url,
+                "website_url": settings.FRONTEND_URL,
+                "amount": amount_in_paisa,
+                "purchase_order_id": str(donation.id),
+                "purchase_order_name": f"Donation to {incident.title}",
+                "customer_info": {
+                    "name": user.full_name or "Khalti User",
+                    "email": user.email,
+                    "phone": "9800000000"
+                }
+            }
+            
+            headers = {
+                "Authorization": f"Key {settings.KHALTI_SECRET_KEY}",
+                "Content-Type": "application/json"
+            }
+            
+            try:
+                khalti_response = requests.post(
+                    f"{settings.KHALTI_API_URL}/epayment/initiate/",
+                    json=payload,
+                    headers=headers
+                )
+                khalti_response.raise_for_status()
+                khalti_data = khalti_response.json()
+                
+                donation.pidx = khalti_data.get("pidx")
+                donation.save()
+                
+                headers_out = self.get_success_headers(serializer.data)
+                response_data = serializer.data
+                response_data["payment_url"] = khalti_data.get("payment_url")
+                return Response(response_data, status=201, headers=headers_out)
+                
+            except requests.exceptions.RequestException as e:
+                donation.payment_status = "failed"
+                donation.save()
+                error_msg = e.response.text if e.response is not None else str(e)
+                print("KHALTI INITIATE ERROR:", error_msg)
+                return Response({"detail": f"Khalti initiation failed. Please check your Khalti Secret Key in .env. Khalti says: {error_msg}"}, status=500)
+        else:
+            create_ledger_entry(
+                module="donations",
+                reference_id=donation.id,
+                action="created",
+                changed_by=user,
+                new_data={
+                    "incident_id": donation.incident_id,
+                    "donation_type": donation.donation_type,
+                    "amount": str(donation.amount) if donation.amount is not None else None,
+                    "item_name": donation.item_name,
+                    "quantity": donation.quantity,
+                },
+                note="Donation submitted.",
+            )
+            headers_out = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=201, headers=headers_out)
 
 
 # ==================================
@@ -128,242 +176,58 @@ class MyDonationListAPIView(generics.ListAPIView):
         ).order_by("-created_at")
 
 
-def _khalti_post(path, payload):
-    url = f"{settings.KHALTI_API_BASE_URL.rstrip('/')}/{path.lstrip('/')}"
-    req = urlrequest.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={
-            "Authorization": f"Key {settings.KHALTI_SECRET_KEY}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-    with urlrequest.urlopen(req, timeout=15) as response:
-        return json.loads(response.read().decode("utf-8"))
-
-
-def _validate_khalti_config():
-    secret_key = (settings.KHALTI_SECRET_KEY or "").strip()
-    if not secret_key:
-        return "Khalti secret key is not configured"
-
-    # ePayment merchant keys are issued in this format.
-    if not secret_key.startswith("live_secret_key_"):
-        return (
-            "Invalid Khalti secret key format. Use Merchant Dashboard ePayment "
-            "Live secret key and match it with the correct base URL."
-        )
-
-    return None
-
-
-def _extract_http_error_detail(exc, fallback):
-    try:
-        body = exc.read().decode("utf-8")
-    except Exception:
-        return fallback
-
-    try:
-        payload = json.loads(body)
-    except Exception:
-        return body or fallback
-
-    if isinstance(payload, dict):
-        detail = payload.get("detail")
-        if isinstance(detail, str) and detail.strip():
-            return detail
-
-        # Khalti may return field-wise validation errors.
-        messages = []
-        for key, value in payload.items():
-            if key == "detail":
-                continue
-            if isinstance(value, list):
-                rendered = ", ".join(str(item) for item in value if str(item).strip())
-                if rendered:
-                    messages.append(f"{key}: {rendered}")
-            elif isinstance(value, str) and value.strip():
-                messages.append(f"{key}: {value}")
-        if messages:
-            return "; ".join(messages)
-
-    return body or fallback
-
-
-class KhaltiInitiateDonationAPIView(APIView):
+# ==================================
+# VERIFY KHALTI PAYMENT
+# ==================================
+class VerifyKhaltiPaymentAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def post(self, request):
-        config_error = _validate_khalti_config()
-        if config_error:
-            return Response(
-                {"detail": config_error},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-        user = request.user
-        if not hasattr(user, "donor_profile"):
-            raise PermissionDenied("Create donor profile first")
-
-        incident_id = request.data.get("incident")
-        raw_amount = request.data.get("amount")
-        is_anonymous = bool(request.data.get("is_anonymous", False))
-
-        if not incident_id:
-            return Response({"detail": "incident is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            incident = Incident.objects.get(pk=incident_id)
-        except Incident.DoesNotExist:
-            return Response({"detail": "Incident not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        if incident.status == IncidentStatus.RESOLVED:
-            return Response({"detail": "Donations closed for this incident"}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            amount_decimal = Decimal(str(raw_amount))
-        except (TypeError, InvalidOperation):
-            return Response({"detail": "Invalid amount"}, status=status.HTTP_400_BAD_REQUEST)
-
-        if amount_decimal <= 0:
-            return Response({"detail": "Amount must be greater than 0"}, status=status.HTTP_400_BAD_REQUEST)
-
-        amount_paisa = int(amount_decimal * 100)
-        if amount_paisa < 1000:
-            return Response(
-                {"detail": "Minimum Khalti amount is NPR 10"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        donation = Donation.objects.create(
-            donor=user.donor_profile,
-            incident=incident,
-            donation_type="money",
-            amount=amount_decimal,
-            is_anonymous=is_anonymous,
-            payment_status="pending",
-        )
-
-        payload = {
-            "return_url": settings.KHALTI_RETURN_URL,
-            "website_url": settings.KHALTI_WEBSITE_URL,
-            "amount": amount_paisa,
-            "purchase_order_id": f"donation-{donation.id}",
-            "purchase_order_name": f"Donation for incident {incident.id}",
-            "customer_info": {
-                "name": user.full_name or user.email,
-                "email": user.email,
-            },
-        }
-
-        try:
-            khalti_response = _khalti_post("/epayment/initiate/", payload)
-        except urlerror.HTTPError as exc:
-            donation.payment_status = "failed"
-            donation.save(update_fields=["payment_status"])
-            message = _extract_http_error_detail(exc, "Khalti initiate failed")
-            return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception:
-            donation.payment_status = "failed"
-            donation.save(update_fields=["payment_status"])
-            return Response(
-                {"detail": "Could not connect to Khalti"},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-
-        donation.khalti_pidx = khalti_response.get("pidx")
-        donation.save(update_fields=["khalti_pidx"])
-
-        create_ledger_entry(
-            module="donations",
-            reference_id=donation.id,
-            action="created",
-            changed_by=user,
-            new_data={
-                "incident_id": donation.incident_id,
-                "donation_type": "money",
-                "amount": str(donation.amount),
-                "payment_status": donation.payment_status,
-                "khalti_pidx": donation.khalti_pidx,
-            },
-            note="Khalti payment initiated for donation.",
-        )
-
-        return Response(
-            {
-                "donation_id": donation.id,
-                "pidx": khalti_response.get("pidx"),
-                "payment_url": khalti_response.get("payment_url"),
-                "expires_at": khalti_response.get("expires_at"),
-                "expires_in": khalti_response.get("expires_in"),
-            },
-            status=status.HTTP_200_OK,
-        )
-
-
-class KhaltiVerifyDonationAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        config_error = _validate_khalti_config()
-        if config_error:
-            return Response(
-                {"detail": config_error},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
+    def post(self, request, *args, **kwargs):
         pidx = request.data.get("pidx")
         if not pidx:
-            return Response({"detail": "pidx is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        if not hasattr(request.user, "donor_profile"):
-            raise PermissionDenied("Create donor profile first")
-
+            return Response({"success": False, "detail": "pidx is required"}, status=400)
+            
         try:
-            donation = Donation.objects.get(khalti_pidx=pidx, donor=request.user.donor_profile)
+            donation = Donation.objects.get(pidx=pidx, donor=request.user.donor_profile)
         except Donation.DoesNotExist:
-            return Response({"detail": "Donation record not found"}, status=status.HTTP_404_NOT_FOUND)
-
+            return Response({"success": False, "detail": "Payment not found"}, status=404)
+            
+        if donation.payment_status == "paid":
+            return Response({"success": True, "detail": "Payment already verified", "data": DonationSerializer(donation).data})
+            
+        headers = {
+            "Authorization": f"Key {settings.KHALTI_SECRET_KEY}",
+            "Content-Type": "application/json"
+        }
+        
         try:
-            khalti_response = _khalti_post("/epayment/lookup/", {"pidx": pidx})
-        except urlerror.HTTPError as exc:
-            message = _extract_http_error_detail(exc, "Khalti verification failed")
-            return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception:
-            return Response(
-                {"detail": "Could not connect to Khalti"},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-
-        payment_state = str(khalti_response.get("status", "")).lower()
-        if payment_state == "completed":
-            donation.payment_status = "paid"
-        elif payment_state in {"expired", "user canceled", "user cancelled", "cancelled", "canceled", "refunded"}:
-            donation.payment_status = "failed"
-        else:
-            donation.payment_status = "pending"
-
-        donation.khalti_transaction_id = khalti_response.get("transaction_id")
-        donation.save(update_fields=["payment_status", "khalti_transaction_id"])
-
-        create_ledger_entry(
-            module="donations",
-            reference_id=donation.id,
-            action="updated",
-            changed_by=request.user,
-            new_data={
-                "payment_status": donation.payment_status,
-                "khalti_transaction_id": donation.khalti_transaction_id,
-            },
-            note="Khalti payment verification completed.",
-        )
-
-        return Response(
-            {
-                "payment_status": donation.payment_status,
-                "khalti_status": khalti_response.get("status"),
-                "donation": DonationSerializer(donation).data,
-            },
-            status=status.HTTP_200_OK,
-        )
+            khalti_res = requests.post(f"{settings.KHALTI_API_URL}/epayment/lookup/", json={"pidx": pidx}, headers=headers)
+            khalti_res.raise_for_status()
+            khalti_data = khalti_res.json()
+            
+            if khalti_data.get("status") == "Completed":
+                donation.payment_status = "paid"
+                donation.payment_ref = khalti_data.get("transaction_id")
+                donation.save()
+                
+                create_ledger_entry(
+                    module="donations",
+                    reference_id=donation.id,
+                    action="completed",
+                    changed_by=request.user,
+                    new_data={
+                        "incident_id": donation.incident_id,
+                        "donation_type": donation.donation_type,
+                        "amount": str(donation.amount) if donation.amount is not None else None,
+                        "payment_ref": donation.payment_ref,
+                    },
+                    note="Khalti Payment Completed.",
+                )
+                
+                return Response({"success": True, "data": DonationSerializer(donation).data})
+            else:
+                return Response({"success": False, "detail": f"Payment status: {khalti_data.get('status')}"}, status=400)
+                
+        except requests.exceptions.RequestException as e:
+            error_data = e.response.text if e.response else str(e)
+            return Response({"success": False, "detail": f"Verification error: {error_data}"}, status=500)
