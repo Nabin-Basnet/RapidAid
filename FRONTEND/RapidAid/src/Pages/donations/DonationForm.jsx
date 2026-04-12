@@ -220,14 +220,35 @@ export default function DonationForm() {
             </label>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--brand)] px-4 py-3 text-sm font-bold text-white hover:bg-[var(--brand-strong)] disabled:opacity-60"
-          >
-            <Gift size={14} />
-            {loading ? "Processing..." : "Submit Donation"}
-          </button>
+          {donationType === "money" ? (
+            <button
+              type="submit"
+              disabled={loading || !amount || Number(amount) <= 0}
+              className="mt-6 inline-flex w-full cursor-pointer items-center justify-center gap-3 rounded-2xl bg-[#5C2D91] px-5 py-4 text-base font-bold text-white shadow-[0_4px_20px_rgba(92,45,145,0.25)] transition-all hover:-translate-y-[2px] hover:bg-[#4a2474] hover:shadow-[0_6px_25px_rgba(92,45,145,0.35)] disabled:translate-y-0 disabled:opacity-60 disabled:shadow-none"
+            >
+              {loading ? (
+                <>
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Processing Khalti Gateway...
+                </>
+              ) : (
+                <>
+                  <span className="font-extrabold tracking-wide uppercase">Pay via Khalti</span>
+                  <span className="opacity-80">|</span>
+                  <span>Rs. {amount || "0"}</span>
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={loading || items.length === 0}
+              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--brand)] px-4 py-4 text-base font-bold text-white shadow-sm transition-all hover:bg-[var(--brand-strong)] disabled:opacity-60"
+            >
+              <Gift size={18} />
+              {loading ? "Processing..." : "Submit Item List"}
+            </button>
+          )}
         </form>
       </div>
     </div>
